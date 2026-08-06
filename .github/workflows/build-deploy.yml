@@ -24,6 +24,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Create embed placeholder (cmd/frpp/out)
+        run: |
+          mkdir -p cmd/frpp/out
+          echo "placeholder" > cmd/frpp/out/.gitkeep
+
       - name: Go vet
         run: go vet ./...
 
