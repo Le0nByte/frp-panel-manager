@@ -1,0 +1,133 @@
+name: Build & Deploy FRP Panel
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  REGISTRY: crpi-2mt8umbmx7v57ahk.cn-chengdu.personal.cr.aliyuncs.com
+
+jobs:
+  test:
+    name: Test (Go + Frontend + Deploy scripts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Go test
+        run: go test ./... -count=1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Frontend typecheck
+        working-directory: www
+        run: |
+          npm install --no-audit --no-fund
+          npx tsc --noEmit
+
+      - name: Deploy scripts offline tests
+        run: |
+          bash deploy/tests/validate-baseline.sh
+          bash deploy/tests/test-backup-rollback.sh
+
+  build:
+    name: Build binaries (linux/amd64 + linux/arm64)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend (embed into cmd/frpp/out)
+        working-directory: www
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build linux/amd64
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o frp-panel-linux-amd64 ./cmd/frpp
+
+      - name: Build linux/arm64
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o frp-panel-linux-arm64 ./cmd/frpp
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: frp-panel-binaries
+          path: |
+            frp-panel-linux-amd64
+            frp-panel-linux-arm64
+          if-no-files-found: error
+
+  deploy-master:
+    name: Deploy Master (Aliyun ECS)
+    needs: build
+    if: (github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: frp-panel-binaries
+          path: dist
+
+      - name: Upload binary + deploy script
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: |
+            dist/frp-panel-linux-amd64
+            deploy/ci-deploy-master.sh
+          target: /opt/frp-panel/bin
+          strip_components: 1
+
+      - name: Run deploy script via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: MASTER_GLOBAL_SECRET,MASTER_API_HOST
+          script: |
+            chmod +x /opt/frp-panel/bin/ci-deploy-master.sh
+            mv /opt/frp-panel/bin/frp-panel-linux-amd64 /opt/frp-panel/bin/frp-panel.new
+            bash /opt/frp-panel/bin/ci-deploy-master.sh ${{ github.ref_name }}
+        env:
+          MASTER_GLOBAL_SECRET: ${{ secrets.MASTER_GLOBAL_SECRET }}
+          MASTER_API_HOST: ${{ secrets.MASTER_API_HOST }}
