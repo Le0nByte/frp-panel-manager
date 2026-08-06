@@ -86,7 +86,8 @@ services:
 
 ```bash
 # 推荐
-# MASTER_RPC_HOST 保持 0.0.0.0 监听；MASTER_API_HOST 必须填写 Agent 实际连接的公网 IP 或 DNS
+# MASTER_RPC_HOST 是 master 内部自连地址（RPC 监听本身绑定所有接口），填 127.0.0.1 即可；
+# MASTER_API_HOST 必须填写 Agent 实际连接的公网 IP 或 DNS（进入 TLS 证书 SAN）
 # APP_GLOBAL_SECRET注意不要泄漏，客户端和服务端的是通过Master生成的
 # CLIENT_RPC_URL和CLIENT_API_URL请根据实际情况设置
 # 如果使用反向代理，请设置为通过反向代理访问的 URL，也就是外部如何访问master
@@ -98,7 +99,7 @@ docker run -d \
 	--restart=unless-stopped \
 	-v /opt/frp-panel:/data \
 	-e APP_GLOBAL_SECRET=your_secret \
-	-e MASTER_RPC_HOST=0.0.0.0 \
+	-e MASTER_RPC_HOST=127.0.0.1 \
 	-e MASTER_API_HOST=PUBLIC_IP_OR_DNS \
 	-e CLIENT_RPC_URL=grpc://PUBLIC_IP_OR_DNS:9101 \
 	-e CLIENT_API_URL=https://PUBLIC_IP_OR_DNS:9443 \
