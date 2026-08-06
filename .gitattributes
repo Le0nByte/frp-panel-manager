@@ -1,0 +1,5 @@
+# Deployment and CI files execute on Linux. Keep LF even when the Windows
+# workstation has core.autocrlf=true.
+*.sh text eol=lf
+deploy/** text eol=lf
+.github/workflows/*.yml text eol=lf

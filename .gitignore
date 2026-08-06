@@ -4,6 +4,12 @@ __debug*
 tmp
 /.tmp/
 *.db*
+# Offline deployment-test fixtures are intentionally tiny ASCII stand-ins,
+# not runtime databases. They must exist in clean Linux CI checkouts.
+!deploy/tests/fixtures/aliyun-src/opt/frp-panel/data/data.db
+!deploy/tests/fixtures/aliyun-src/opt/frp-panel/data/data.db-wal
+!deploy/tests/fixtures/aliyun-src/opt/frp-panel/data/data.db-shm
+!deploy/tests/fixtures/sample-aliyun-backup/data.db
 /frp-panel
 out
 cmd/out
