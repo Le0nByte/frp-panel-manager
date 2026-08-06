@@ -253,6 +253,12 @@ func (q *serverQuery) CountServers(userInfo models.UserInfo) (int64, error) {
 				TenantID: userInfo.GetTenantID(),
 			},
 		},
+	).Or(
+		&models.Server{
+			ServerEntity: &models.ServerEntity{
+				ServerID: defs.DefaultServerID,
+			},
+		},
 	).Count(&count).Error
 	if err != nil {
 		return 0, err
@@ -280,20 +286,14 @@ func (q *serverQuery) CountServersWithKeyword(userInfo models.UserInfo, keyword 
 func (q *serverQuery) CountConfiguredServers(userInfo models.UserInfo) (int64, error) {
 	db := q.ctx.GetApp().GetDBManager().GetDefaultDB()
 	var count int64
-	err := db.Model(&models.Server{}).Where(
-		&models.Server{
-			ServerEntity: &models.ServerEntity{
-				UserID:   userInfo.GetUserID(),
-				TenantID: userInfo.GetTenantID(),
-			},
-		},
-	).Not(
-		&models.Server{
-			ServerEntity: &models.ServerEntity{
-				ConfigContent: []byte{},
-			},
-		},
-	).Count(&count).Error
+	// gorm chains Where(A).Or(B).Not(C) WITHOUT parentheses, and AND binds
+	// tighter than OR, so the Not would only apply to B. Build the
+	// grouping explicitly: ((user AND tenant) OR default) AND configured.
+	err := db.Model(&models.Server{}).
+		Where("(user_id = ? AND tenant_id = ?) OR server_id = ?",
+			userInfo.GetUserID(), userInfo.GetTenantID(), defs.DefaultServerID).
+		Where("config_content IS NOT NULL AND length(config_content) > 0").
+		Count(&count).Error
 	if err != nil {
 		return 0, err
 	}
