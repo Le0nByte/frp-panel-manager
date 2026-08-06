@@ -44,12 +44,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: www/pnpm-lock.yaml
 
       - name: Frontend typecheck
         working-directory: www
         run: |
-          npm install --no-audit --no-fund
-          npx tsc --noEmit
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit
 
       - name: Deploy scripts offline tests
         run: |
@@ -69,12 +71,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: www/pnpm-lock.yaml
 
       - name: Build frontend (embed into cmd/frpp/out)
         working-directory: www
         run: |
-          npm install --no-audit --no-fund
-          npm run build
+          pnpm install --frozen-lockfile
+          pnpm build
 
       - name: Set up Go
         uses: actions/setup-go@v5
