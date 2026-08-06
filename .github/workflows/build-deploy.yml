@@ -57,7 +57,14 @@ jobs:
       - name: Deploy scripts offline tests
         run: |
           bash deploy/tests/validate-baseline.sh
-          bash deploy/tests/test-backup-rollback.sh
+          # ubuntu-latest currently preinstalls sqlite3, but T05 intentionally
+          # verifies the sqlite3-absent stop-copy fallback. Run the offline
+          # suite in a clean Ubuntu container so host tools cannot leak in.
+          docker run --rm \
+            -v "$PWD:/repo" \
+            -w /repo \
+            ubuntu:24.04 \
+            bash -c 'set -e; apt-get update -qq; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git >/dev/null; git config --global --add safe.directory /repo; bash deploy/tests/test-backup-rollback.sh'
 
   build:
     name: Build binaries (linux/amd64 + linux/arm64)
