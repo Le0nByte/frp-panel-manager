@@ -29,6 +29,11 @@ jobs:
           mkdir -p cmd/frpp/out
           echo "placeholder" > cmd/frpp/out/.gitkeep
 
+      - name: Prepare upstream workerd test path
+        run: |
+          sudo mkdir -p /home/coder/code/frp-panel/tmp/workerd /home/coder/go/bin
+          sudo chmod -R 777 /home/coder
+
       - name: Go vet
         run: go vet ./...
 
