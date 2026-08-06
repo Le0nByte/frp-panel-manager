@@ -431,6 +431,17 @@ export const ClientActions: React.FC<ClientItemProps> = ({ client, table }) => {
           <DropdownMenuLabel>{t('client.actions_menu.title')}</DropdownMenuLabel>
           <DropdownMenuItem
             onClick={() => {
+              router.push({
+                pathname: '/clientedit',
+                query: { clientID: client.id },
+              })
+            }}
+          >
+            {t('client.configuration')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
               try {
                 if (platformInfo) {
                   navigator.clipboard.writeText(ExecCommandStr('client', client, platformInfo))

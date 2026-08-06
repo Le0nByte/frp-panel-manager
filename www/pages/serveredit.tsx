@@ -1,16 +1,18 @@
-import Link from 'next/link'
+import { Providers } from '@/components/providers'
+import { RootLayout } from '@/components/layout'
+import { Header } from '@/components/header'
+import { FRPSFormCard } from '@/components/frps/frps_card'
 
-export default function ServerEditPage() {
+export default function ServerListPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
-      <section className="max-w-lg space-y-4 rounded border p-6">
-        <h1 className="text-xl font-semibold">Raw FRPS editing is disabled</h1>
-        <p className="text-muted-foreground">
-          Use the managed proxy workflow. It performs both-side preflight,
-          transactional persistence, acknowledgement and rollback checks.
-        </p>
-        <Link className="underline" href="/ports">Open Port Center</Link>
-      </section>
-    </main>
+    <Providers>
+      <RootLayout mainHeader={<Header />}>
+        <div className="w-full flex items-center justify-center">
+          <div className="flex-1 flex-col max-w-2xl">
+            <FRPSFormCard />
+          </div>
+        </div>
+      </RootLayout>
+    </Providers>
   )
 }

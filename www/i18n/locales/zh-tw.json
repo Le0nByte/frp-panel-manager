@@ -177,7 +177,8 @@
     },
     "status_error": "錯誤",
     "status_pause": "已暫停",
-    "status_unknown": "未知"
+    "status_unknown": "未知",
+    "configuration": "隧道配置"
   },
   "common": {
     "cancel": "取消",

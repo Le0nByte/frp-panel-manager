@@ -92,7 +92,7 @@ func ConfigureRouter(appInstance app.Application, router *gin.Engine) {
 		}
 		frpsRouter := v1.Group("/frps")
 		{
-			frpsRouter.POST("/update", middleware.RequireWritable(), app.Wrapper(appInstance, server.RejectLegacyFRPSUpdate))
+			frpsRouter.POST("/update", middleware.RequireWritable(), app.Wrapper(appInstance, server.UpdateFrpsHandlerSafe))
 			frpsRouter.POST("/delete", middleware.RequireWritable(), app.Wrapper(appInstance, server.RemoveFrpsHandler))
 		}
 		proxyRouter := v1.Group("/proxy")

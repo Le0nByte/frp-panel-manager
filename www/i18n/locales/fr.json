@@ -177,7 +177,8 @@
     },
     "status_error": "Erreur",
     "status_pause": "En Pause",
-    "status_unknown": "Inconnu"
+    "status_unknown": "Inconnu",
+    "configuration": "Configuration des tunnels"
   },
   "common": {
     "cancel": "Annuler",

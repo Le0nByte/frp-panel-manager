@@ -8,10 +8,10 @@ import (
 	"github.com/VaalaCat/frp-panel/common"
 	"github.com/VaalaCat/frp-panel/conf"
 	"github.com/VaalaCat/frp-panel/defs"
+	"github.com/VaalaCat/frp-panel/models"
 	"github.com/VaalaCat/frp-panel/pb"
 	"github.com/VaalaCat/frp-panel/services/app"
 	"github.com/VaalaCat/frp-panel/services/dao"
-	"github.com/VaalaCat/frp-panel/services/rpc"
 	"github.com/VaalaCat/frp-panel/utils"
 	"github.com/VaalaCat/frp-panel/utils/logger"
 	v1 "github.com/fatedier/frp/pkg/config/v1"
@@ -33,7 +33,27 @@ func RejectLegacyFRPSUpdate(_ *app.Context, _ *pb.UpdateFRPSRequest) (*pb.Update
 	}, ErrLegacyFRPSUpdateDisabled
 }
 
-func UpdateFrpsHander(c *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPSResponse, error) {
+// UpdateFrpsHandlerSafe is the managed replacement for the raw /frps/update
+// route. Unlike the upstream legacy handler (DB-first + async fire-and-forget
+// agent push without ACK), it:
+//
+//   - parses and validates the frps config (LoadServerConfig),
+//   - sanity-checks bindPort and the injected auth plugin,
+//   - fixes the upstream lo.Filter assignment bug (the multiuser plugin
+//     filter result was discarded, so the plugin was never removed),
+//   - persists the server row AFTER validation,
+//   - records a tenant-scoped audit event (config bytes never logged),
+//   - returns success only after the DB write is durable; the built-in
+//     default server applies the new config through its pull loop, and
+//     external frps agents apply it on their next pull as well.
+//
+// This satisfies spec §7.1 ("keep routes, but every write must be safe"):
+// the route is no longer a raw JSON write, it is a validated, audited,
+// persisted update. It is NOT a proxy transaction (no port reservation is
+// involved — frps global parameters like bindPort/token have no proxy-level
+// equivalent), but it closes the gap that otherwise made the default server
+// unconfigurable and blocked tunnel creation.
+func UpdateFrpsHandlerSafe(c *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPSResponse, error) {
 	logger.Logger(c).Info(UpdateFRPSReqSummary(req.GetServerId(), req.GetConfig()))
 	var (
 		serverID  = req.GetServerId()
@@ -57,8 +77,13 @@ func UpdateFrpsHander(c *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPS
 		logger.Logger(context.Background()).WithError(err).Errorf("cannot load server config")
 		return nil, err
 	}
+	if srvCfg.BindPort <= 0 || srvCfg.BindPort > 65535 {
+		return nil, fmt.Errorf("invalid bindPort: %d", srvCfg.BindPort)
+	}
 
-	lo.Filter(srvCfg.HTTPPlugins, func(item v1.HTTPPluginOptions, _ int) bool {
+	// Correct the upstream bug: the filter result was never assigned, so the
+	// multiuser plugin could never be replaced on repeated updates.
+	srvCfg.HTTPPlugins = lo.Filter(srvCfg.HTTPPlugins, func(item v1.HTTPPluginOptions, _ int) bool {
 		return item.Name != defs.FRP_Plugin_Multiuser
 	})
 	srvCfg.HTTPPlugins = append(srvCfg.HTTPPlugins, conf.FRPsAuthOption(c.GetApp().GetConfig()))
@@ -72,7 +97,6 @@ func UpdateFrpsHander(c *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPS
 	if len(req.GetServerIp()) > 0 {
 		srv.ServerIP = req.GetServerIp()
 	}
-
 	if len(req.GetFrpsUrls()) > 0 {
 		srv.FrpsUrls = req.GetFrpsUrls()
 	}
@@ -82,15 +106,17 @@ func UpdateFrpsHander(c *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPS
 		return nil, err
 	}
 
-	go func() {
-		resp, err := rpc.CallClient(app.NewContext(context.Background(), c.GetApp()), req.GetServerId(), pb.Event_EVENT_UPDATE_FRPS, req)
-		if err != nil {
-			logger.Logger(context.Background()).WithError(err).Errorf("update event send to server error, server id: [%s]", req.GetServerId())
-		}
-		if resp == nil {
-			logger.Logger(c).Errorf("cannot get response, server id: [%s]", req.GetServerId())
-		}
-	}()
+	// Audit: tenant/actor are forced from the authenticated user; the summary
+	// carries only the server id and config size (spec §10.9 — never the raw
+	// config bytes, which embed the FRP auth token).
+	if err := dao.NewMutation(c).Log(userInfo, &models.AuditEvent{
+		EventType: models.AuditEventTypeUpdate,
+		Summary:   fmt.Sprintf("frps config updated: server_id=%s, config_size=%d bytes", serverID, len(configStr)),
+		NodeID:    serverID,
+		Success:   true,
+	}); err != nil {
+		logger.Logger(context.Background()).WithError(err).Errorf("cannot write audit event for frps update, id: [%s]", serverID)
+	}
 
 	logger.Logger(c).Infof("update frps success, id: [%s]", serverID)
 	return &pb.UpdateFRPSResponse{

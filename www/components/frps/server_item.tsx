@@ -354,6 +354,14 @@ export const ServerActions: React.FC<ServerItemProps> = ({ server, table }) => {
           <DropdownMenuLabel>{t('server.actions_menu.title')}</DropdownMenuLabel>
           <DropdownMenuItem
             onClick={() => {
+              router.push({ pathname: '/serveredit', query: { serverID: server.id } })
+            }}
+          >
+            {t('server.configuration')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
               try {
                 if (platformInfo) {
                   navigator.clipboard.writeText(ExecCommandStr('server', server, platformInfo))
@@ -368,7 +376,8 @@ export const ServerActions: React.FC<ServerItemProps> = ({ server, table }) => {
           >
             {t('server.actions_menu.copy_command')}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
+
+                  <DropdownMenuSeparator />
 
           <DropdownMenuItem
             onClick={() => {

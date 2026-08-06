@@ -177,7 +177,8 @@
     },
     "status_error": "Error",
     "status_pause": "Paused",
-    "status_unknown": "Unknown"
+    "status_unknown": "Unknown",
+    "configuration": "Tunnel Configuration"
   },
   "common": {
     "cancel": "Cancel",
