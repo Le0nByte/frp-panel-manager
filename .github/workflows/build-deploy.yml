@@ -126,6 +126,12 @@ jobs:
           name: frp-panel-binaries
           path: dist
 
+      - name: Prepare deployment bundle
+        run: |
+          mkdir -p deploy-bundle
+          cp dist/frp-panel-linux-amd64 deploy-bundle/frp-panel-linux-amd64
+          cp deploy/ci-deploy-master.sh deploy-bundle/ci-deploy-master.sh
+
       - name: Upload binary + deploy script
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -133,9 +139,7 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: |
-            dist/frp-panel-linux-amd64
-            deploy/ci-deploy-master.sh
+          source: deploy-bundle/*
           target: /opt/frp-panel/bin
           strip_components: 1
 
