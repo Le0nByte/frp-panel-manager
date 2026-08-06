@@ -41,8 +41,15 @@ func UpdateFrpsHander(ctx *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFR
 		}
 	}
 
-	ctx.GetApp().GetServerController().Add(serverID, server.NewServerHandler(s))
-	ctx.GetApp().GetServerController().Run(serverID)
+	h, err := server.NewServerHandler(s)
+		if err != nil {
+			logger.Logger(context.Background()).WithError(err).Errorf("cannot create server handler for %s", serverID)
+			return &pb.UpdateFRPSResponse{
+				Status: &pb.Status{Code: pb.RespCode_RESP_CODE_INVALID, Message: err.Error()},
+			}, err
+		}
+		ctx.GetApp().GetServerController().Add(serverID, h)
+		ctx.GetApp().GetServerController().Run(serverID)
 
 	return &pb.UpdateFRPSResponse{
 		Status: &pb.Status{Code: pb.RespCode_RESP_CODE_SUCCESS, Message: "ok"},

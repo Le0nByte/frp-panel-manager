@@ -58,8 +58,13 @@ func PullConfig(appInstance app.Application, serverID, serverSecret string) erro
 		}
 	}
 
-	ctrl.Add(serverID, server.NewServerHandler(s))
-	ctrl.Run(serverID)
+	h, err := server.NewServerHandler(s)
+		if err != nil {
+			logger.Logger(ctx).WithError(err).Errorf("cannot create server handler for %s, will retry on next pull", serverID)
+			return err
+		}
+		ctrl.Add(serverID, h)
+		ctrl.Run(serverID)
 
 	logger.Logger(ctx).Infof("pull server config success, serverID: [%s]", serverID)
 	return nil
