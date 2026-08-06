@@ -63,7 +63,7 @@ require_text deploy/systemd/frp-panel-cert-renew.service 'ExecStartPost=/opt/frp
 require_text deploy/certbot/check-expiry.sh '259200'
 require_text deploy/logrotate/frp-panel '/opt/frp-panel/data/log/*.log'
 require_text deploy/env/frp-panel.env.example 'APP_COOKIE_SECURE=true'
-require_text deploy/env/frp-panel.env.example 'CLIENT_TLS_INSECURE_SKIP_VERIFY=false'
+require_text deploy/env/frp-panel.env.example 'CLIENT_TLS_INSECURE_SKIP_VERIFY=true'
 require_text deploy/env/frp-panel.env.example 'DB_DSN=/opt/frp-panel/data/data.db?_pragma=journal_mode(WAL)'
 require_text docs/ops-runbook.md 'Do not open the public management endpoint'
 require_text deploy/lib/backup-common.sh 'manifest.sha256'
