@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Test stub for curl. Records invocations to $STUB_LOG.
+# Prints an HTTP code like `curl -w '%{http_code}'` would:
+#   call with a header file arg (-H @file):
+#     STUB_EXPECT_AUTH_TOKEN set -> READS the header file and returns
+#       STUB_CURL_CODE_TOKEN (default 200) ONLY when its content is exactly
+#       "Authorization: Bearer $STUB_EXPECT_AUTH_TOKEN" (trailing newline
+#       tolerated); any other content returns 401. This proves the hook's
+#       header payload is genuine, not merely that an @file arg was passed.
+#     STUB_EXPECT_AUTH_TOKEN unset -> returns STUB_CURL_CODE_TOKEN (default 200)
+#   call without any header file          -> STUB_CURL_CODE_NO_TOKEN (default 401)
+# The header file CONTENT is never written to STUB_LOG (only argv paths).
+set -u
+printf 'curl %s\n' "$*" >> "${STUB_LOG:?STUB_LOG must be set}"
+args=("$@")
+n=${#args[@]}
+header_file=""
+for ((i = 0; i < n; i++)); do
+  a="${args[i]}"
+  if [[ "$a" == "-H" ]]; then
+    if (( i + 1 < n )) && [[ "${args[i + 1]}" == @* ]]; then
+      header_file="${args[i + 1]#@}"
+    fi
+  elif [[ "$a" == @* ]]; then
+    header_file="${a#@}"
+  fi
+done
+if [[ -n "$header_file" ]]; then
+  if [[ -n "${STUB_EXPECT_AUTH_TOKEN:-}" ]]; then
+    [[ -r "$header_file" ]] || { printf '401\n'; exit 0; }
+    expected="Authorization: Bearer ${STUB_EXPECT_AUTH_TOKEN}"
+    actual="$(<"$header_file")"
+    if [[ "$actual" == "$expected" ]]; then
+      printf '%s\n' "${STUB_CURL_CODE_TOKEN:-200}"
+    else
+      printf '401\n'
+    fi
+  else
+    printf '%s\n' "${STUB_CURL_CODE_TOKEN:-200}"
+  fi
+else
+  printf '%s\n' "${STUB_CURL_CODE_NO_TOKEN:-401}"
+fi
+exit 0

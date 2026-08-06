@@ -35,6 +35,9 @@ enum Event {
   EVENT_GET_WIREGUARD_RUNTIME_INFO = 26;
   EVENT_RESTART_WIREGUARD = 27;
   EVENT_UPGRADE_FRPP = 28;
+  // port manager extension (spec §4.2)
+  EVENT_INSPECT_PORTS = 30;
+  EVENT_VALIDATE_PORT = 31;
 }
 
 message ServerBase {

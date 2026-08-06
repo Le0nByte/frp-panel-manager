@@ -6,7 +6,7 @@ Server 推荐使用 docker 部署！不推荐直接安装到服务器中
 
 > `default` 服务端禁止单独部署，直接在 webui 中配置即可。重复部署会造成 `default` 服务端无法正常工作。
 
-> `server` 会占用 8999 端口，请确保该端口未被占用。如果冲突，请修改 `server` 的 `SERVER_API_PORT` 和 `INTERNAL_FRP_AUTH_SERVER_PORT` 环境变量，要确保两个端口一致。`default` 服务端也会占用这个端口，因此不能在同一台机器以**默认配置**部署 `server` 和 `default` 服务端，需要修改 `server` 的环境变量来避免冲突。 
+> `server` 会占用 8999 端口，请确保该端口未被占用。如果冲突，请修改 `SERVER_API_PORT`。`default` 服务端也会占用这个端口，因此不能在同一台机器以**默认配置**部署 `server` 和 `default` 服务端。
 
 > 如果只有一台公网服务器需要管理，那么使用 `master` 自带的 `default` 服务端即可，无需单独部署 `server`，但要注意在 `master` 启动后要配置 `default` 服务端
 
@@ -23,13 +23,13 @@ Server 推荐使用 docker 部署！不推荐直接安装到服务器中
 刷新后，新的服务端会出现在列表中。点击对应服务端的`密钥 (点击查看启动命令)`一列中的隐藏字段，复制类似的启动命令如下备用：
 
 ```bash
-frp-panel server -s abc -i user.s.server1 --api-url http://frpp.example.com:9000 --rpc-url grpc://frpp-rpc.example.com:9001
+frp-panel server -s abc -i user.s.server1 --api-url https://frpp.example.com --rpc-url grpc://frpp-rpc.example.com:9101
 ```
 
-注意，如果你使用 反向代理 TLS，需要以 http 上游的形式，外部 443 端口代理 `master` 的 9000(API) 端口，且修改启动/安装命令类似如下：
+注意，如果你使用 反向代理 TLS，需要以 http 上游的形式，外部 443 端口代理 `master` 的 9100(API) 端口，且修改启动/安装命令类似如下：
 
 ```bash
-frp-panel server -s abc -i user.s.server1 --api-url https://frpp.example.com:443 --rpc-url wss://frpp.example.com:443
+frp-panel server -s abc -i user.s.server1 --api-url https://frpp.example.com:443 --rpc-url grpc://frpp-rpc.example.com:9101
 ```
 
 ### 2. 程序安装
@@ -46,7 +46,7 @@ services:
     container_name: frp-panel-server
     network_mode: host
     restart: unless-stopped
-    command: server -s abc -i user.s.server1 --api-url http://frpp.example.com:9000 --rpc-url grpc://frpp-rpc.example.com:9001
+    command: server -s abc -i user.s.server1 --api-url https://frpp.example.com --rpc-url grpc://frpp-rpc.example.com:9101
 ```
 
 #### 直接运行

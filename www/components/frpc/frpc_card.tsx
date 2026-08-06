@@ -1,13 +1,11 @@
 "use client"
 
-import React, { useEffect } from 'react'
-import { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Label } from '@radix-ui/react-label'
 import { useQuery } from '@tanstack/react-query'
 import { getClient } from '@/api/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
-import { FRPCEditor } from './frpc_editor'
+
 import { FRPCForm } from './frpc_form'
 import { useSearchParams } from 'next/navigation'
 import { ClientConfig } from '@/types/client'
@@ -29,7 +27,7 @@ export const FRPCFormCard: React.FC<FRPCFormCardProps> = ({
   serverID: defaultServerID,
 }: FRPCFormCardProps) => {
   const { t } = useTranslation()
-  const [advanceMode, setAdvanceMode] = useState<boolean>(false)
+
   const [clientID, setClientID] = useState<string | undefined>()
   const [serverID, setServerID] = useState<string | undefined>()
   const searchParams = useSearchParams()
@@ -105,13 +103,7 @@ export const FRPCFormCard: React.FC<FRPCFormCardProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center space-x-4 rounded-md border p-4">
-          <div className="flex-1 space-y-1">
-            <p className="text-sm font-medium leading-none">{t('frpc.form.advanced.title')}</p>
-            <p className="text-sm text-muted-foreground">{t('frpc.form.advanced.description')}</p>
-          </div>
-          <Switch onCheckedChange={setAdvanceMode} />
-        </div>
+
         <div className="flex flex-col w-full pt-2 space-y-2">
           <Label className="text-sm font-medium">{t('frpc.form.server')}</Label>
           <ServerSelector serverID={serverID} setServerID={setServerID} setServer={setSelectedServer} />
@@ -121,22 +113,13 @@ export const FRPCFormCard: React.FC<FRPCFormCardProps> = ({
           <p className="text-sm text-muted-foreground">{t('frpc.form.frps_url.hint')}</p>
           <SuggestiveInput value={frpsUrl || ''} onChange={setFrpsUrl} suggestions={selectedServer?.frpsUrls || []} />
         </div>
-        {clientID && !advanceMode && <div className='flex flex-col w-full pt-2 space-y-2'>
+        {clientID && <div className='flex flex-col w-full pt-2 space-y-2'>
           <Label className="text-sm font-medium">{t('frpc.form.comment.title', { id: clientID })}</Label>
           <p className="text-sm text-muted-foreground">{t('frpc.form.comment.hint')}</p>
           <p className="text-sm border rounded p-2 my-2">
             {client?.client?.comment == undefined || client?.client?.comment === '' ? t('frpc.form.comment.empty') : client?.client?.comment}
           </p></div>}
-        {clientID && serverID && !advanceMode && <FRPCForm
-          client={client?.client}
-          clientConfig={JSON.parse(client?.client?.config || '{}') as ClientConfig} refetchClient={refetchClient}
-          clientID={clientID} serverID={serverID}
-          clientProxyConfigs={clientProxyConfigs}
-          setClientProxyConfigs={setClientProxyConfigs}
-          frpsUrl={frpsUrl}
-        />
-        }
-        {clientID && serverID && advanceMode && <FRPCEditor
+        {clientID && serverID && <FRPCForm
           client={client?.client}
           clientConfig={JSON.parse(client?.client?.config || '{}') as ClientConfig} refetchClient={refetchClient}
           clientID={clientID} serverID={serverID}

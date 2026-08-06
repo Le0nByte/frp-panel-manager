@@ -51,6 +51,11 @@ message UpdateFRPCRequest {
   optional bytes config = 3;
   optional string comment = 4;
   optional string frps_url = 5;
+  // Directed handler switch (safe-create atomic shadow): when set and
+  // different from client_id, the agent stops/deletes the live handler for
+  // (replace_client_id, server_id) BEFORE adding/updating the client_id
+  // handler — never StopAll. Empty = no replacement.
+  optional string replace_client_id = 6;
 }
 
 message UpdateFRPCResponse {
@@ -109,20 +114,35 @@ message CreateProxyConfigRequest {
   optional string server_id = 2;
   optional bytes config = 3;
   optional bool overwrite = 4;
+  optional string idempotency_key = 12;
+  optional string preflight_token = 13;
 }
 
 message CreateProxyConfigResponse {
   optional common.Status status = 1;
+  // Structured error code (spec §7.3): a stable machine-checkable code like
+  // PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+  // human-readable and never embeds the code as a prefix.
+  optional string error_code = 2;
 }
 
 message DeleteProxyConfigRequest {
   optional string client_id = 1;
   optional string server_id = 2;
   optional string name = 3;
+  // Idempotency key (spec §7.3): a stable user-supplied key so retried
+  // requests converge on the same transaction. Mirrors
+  // CreateProxyConfigRequest.idempotency_key.
+  optional string idempotency_key = 12;
 }
 
 message DeleteProxyConfigResponse {
   optional common.Status status = 1;
+  // Structured error code (spec §7.3): a stable machine-checkable code like
+  // PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+  // human-readable and never embeds the code as a prefix. Mirrors
+  // CreateProxyConfigResponse.error_code.
+  optional string error_code = 2;
 }
 
 message UpdateProxyConfigRequest {
@@ -130,10 +150,17 @@ message UpdateProxyConfigRequest {
   optional string server_id = 2;
   optional string name = 3;
   optional bytes config = 4;
+  optional string idempotency_key = 12;
+  optional string preflight_token = 13;
 }
 
 message UpdateProxyConfigResponse {
   optional common.Status status = 1;
+  // Structured error code (spec §7.3): a stable machine-checkable code like
+  // PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+  // human-readable and never embeds the code as a prefix. Mirrors
+  // CreateProxyConfigResponse.error_code.
+  optional string error_code = 2;
 }
 
 message GetProxyConfigRequest {
@@ -152,20 +179,28 @@ message StopProxyRequest {
   optional string client_id = 1;
   optional string server_id = 2;
   optional string name = 3;
+  // Idempotency key (spec §7.3): mirrors CreateProxyConfigRequest.idempotency_key.
+  optional string idempotency_key = 12;
 }
 
 message StopProxyResponse {
   optional common.Status status = 1;
+  // Structured error code (spec §7.3): mirrors CreateProxyConfigResponse.error_code.
+  optional string error_code = 2;
 }
 
 message StartProxyRequest {
   optional string client_id = 1;
   optional string server_id = 2;
   optional string name = 3;
+  // Idempotency key (spec §7.3): mirrors CreateProxyConfigRequest.idempotency_key.
+  optional string idempotency_key = 12;
 }
 
 message StartProxyResponse {
   optional common.Status status = 1;
+  // Structured error code (spec §7.3): mirrors CreateProxyConfigResponse.error_code.
+  optional string error_code = 2;
 }
 
 message CreateWorkerRequest {

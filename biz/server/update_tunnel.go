@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/VaalaCat/frp-panel/pb"
@@ -12,7 +13,7 @@ import (
 )
 
 func UpdateFrpsHander(ctx *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPSResponse, error) {
-	logger.Logger(ctx).Infof("update frps, req: [%+v]", req)
+	logger.Logger(ctx).Info(UpdateFRPSReqSummary(req.GetServerId(), req.GetConfig()))
 
 	content := req.GetConfig()
 
@@ -46,4 +47,13 @@ func UpdateFrpsHander(ctx *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFR
 	return &pb.UpdateFRPSResponse{
 		Status: &pb.Status{Code: pb.RespCode_RESP_CODE_SUCCESS, Message: "ok"},
 	}, nil
+}
+
+// UpdateFRPSReqSummary returns a safe log summary of an update-request:
+// only the server ID and the config byte length are included. The raw FRPS
+// config bytes (which embed the FRP auth token) are never logged (spec
+// §10.9). Package-local mirror of the master-side helper so the agent
+// binary does not need to import master business code.
+func UpdateFRPSReqSummary(serverID string, config []byte) string {
+	return fmt.Sprintf("update frps, req: {server_id: %q, config_size: %d bytes}", serverID, len(config))
 }

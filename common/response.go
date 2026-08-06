@@ -36,7 +36,10 @@ type RespType interface {
 		pb.CreateEndpointResponse | pb.DeleteEndpointResponse | pb.UpdateEndpointResponse | pb.GetEndpointResponse | pb.ListEndpointsResponse |
 		pb.CreateWireGuardResponse | pb.DeleteWireGuardResponse | pb.UpdateWireGuardResponse | pb.GetWireGuardResponse | pb.ListWireGuardsResponse |
 		pb.CreateWireGuardLinkResponse | pb.DeleteWireGuardLinkResponse | pb.UpdateWireGuardLinkResponse | pb.GetWireGuardLinkResponse | pb.ListWireGuardLinksResponse |
-		pb.GetWireGuardRuntimeInfoResponse | pb.GetNetworkTopologyResponse
+		pb.GetWireGuardRuntimeInfoResponse | pb.GetNetworkTopologyResponse |
+		// port manager api
+		pb.ListPortsResponse | pb.PreflightResponse | pb.InspectPortsResponse | pb.ValidatePortResponse |
+		pb.ListAuditResponse | pb.GetAuditResponse | pb.RollbackResponse
 }
 
 func OKResp[T RespType](c *gin.Context, origin *T) {
@@ -63,7 +66,7 @@ func ErrUnAuthorized(c *gin.Context, err string) {
 		c.ProtoBuf(http.StatusUnauthorized,
 			&pb.CommonResponse{Status: &pb.Status{Code: pb.RespCode_RESP_CODE_UNAUTHORIZED, Message: err}})
 	} else {
-		c.JSON(http.StatusOK, Err(err))
+		c.JSON(http.StatusUnauthorized, UnAuth(err))
 	}
 }
 
@@ -93,9 +96,9 @@ func getEvent(origin interface{}) (pb.Event, protoreflect.ProtoMessage, error) {
 	case *pb.RemoveFRPCResponse:
 		return pb.Event_EVENT_REMOVE_FRPC, ptr, nil
 	case *pb.UpdateFRPSResponse:
-		return pb.Event_EVENT_UPDATE_FRPC, ptr, nil
+		return pb.Event_EVENT_UPDATE_FRPS, ptr, nil
 	case *pb.RemoveFRPSResponse:
-		return pb.Event_EVENT_REMOVE_FRPC, ptr, nil
+		return pb.Event_EVENT_REMOVE_FRPS, ptr, nil
 	case *pb.StartFRPCResponse:
 		return pb.Event_EVENT_START_FRPC, ptr, nil
 	case *pb.StopFRPCResponse:
@@ -126,6 +129,10 @@ func getEvent(origin interface{}) (pb.Event, protoreflect.ProtoMessage, error) {
 		return pb.Event_EVENT_RESTART_WIREGUARD, ptr, nil
 	case *pb.GetWireGuardRuntimeInfoResponse:
 		return pb.Event_EVENT_GET_WIREGUARD_RUNTIME_INFO, ptr, nil
+	case *pb.InspectPortsResponse:
+		return pb.Event_EVENT_INSPECT_PORTS, ptr, nil
+	case *pb.ValidatePortResponse:
+		return pb.Event_EVENT_VALIDATE_PORT, ptr, nil
 	default:
 		return 0, nil, fmt.Errorf("cannot unmarshal unknown type: %T", origin)
 	}

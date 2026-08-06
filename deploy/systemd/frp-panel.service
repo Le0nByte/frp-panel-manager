@@ -1,0 +1,25 @@
+[Unit]
+Description=FRP Panel Master
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=frp-panel
+Group=frp-panel
+EnvironmentFile=/etc/frp-panel/frp-panel.env
+# Install the fork-built binary at this absolute path.
+ExecStart=/opt/frp-panel/bin/frp-panel master
+WorkingDirectory=/opt/frp-panel
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/frp-panel/data /opt/frp-panel/secrets
+MemoryHigh=300M
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

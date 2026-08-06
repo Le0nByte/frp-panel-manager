@@ -1,7 +1,9 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -19,8 +21,57 @@ import (
 	"github.com/spf13/cast"
 )
 
+// ErrLegacyFRPCUpdateDisabled is returned by the public compatibility route.
+// Raw client JSON cannot be mapped safely to the transactional proxy API: it
+// can contain multiple rules and unsupported proxy types. Internal callers
+// that already hold the origin lock continue to use UpdateFrpcHanderLocked.
+var ErrLegacyFRPCUpdateDisabled = errors.New("legacy raw frpc update endpoint is disabled; use the managed proxy API")
+
+// RejectLegacyFRPCUpdate is deliberately fail-closed. Keeping the route
+// shape avoids a breaking router change for old clients, while preventing a
+// public caller from bypassing Preflight, reservation, snapshot, ACK and
+// rollback requirements.
+func RejectLegacyFRPCUpdate(_ *app.Context, _ *pb.UpdateFRPCRequest) (*pb.UpdateFRPCResponse, error) {
+	return &pb.UpdateFRPCResponse{
+		Status: &pb.Status{
+			Code:    pb.RespCode_RESP_CODE_INVALID,
+			Message: "legacy raw frpc update endpoint is disabled; use the managed proxy API",
+		},
+	}, ErrLegacyFRPCUpdateDisabled
+}
+
+// UpdateFrpcHander is an internal compatibility entry. It acquires the
+// (tenant, origin) keyed lock — the SAME originlock.Shared instance the
+// managed coordinators use — and delegates to UpdateFrpcHanderLocked. The
+// public /frpc/update route is bound to RejectLegacyFRPCUpdate.
+// The lock spans the whole operation: reads, DB writes and the
+// synchronous agent ACK (round-8 I3: legacy writers bypassed the
+// SafeCreate lock and silently lost updates).
+//
+// NOTE for internal callers: the proxy package handlers (Update/Delete/
+// Start/Stop/CreateWorkerIngress) already hold the lock when they push
+// the new client config to the agent — they MUST call
+// UpdateFrpcHanderLocked, never this entry, or the same goroutine would
+// deadlock on its own key.
 func UpdateFrpcHander(c *app.Context, req *pb.UpdateFRPCRequest) (*pb.UpdateFRPCResponse, error) {
-	logger.Logger(c).Infof("update frpc, req: [%+v]", req)
+	_, unlock, err := lockClientOrigin(c, req.GetClientId())
+	if err != nil {
+		logger.Logger(c).WithError(err).Errorf("cannot resolve origin client, id: [%s]", req.GetClientId())
+		return nil, err
+	}
+	defer unlock()
+	return UpdateFrpcHanderLocked(c, req)
+}
+
+// UpdateFrpcHanderLocked is the lock-free body of UpdateFrpcHander. The
+// caller MUST already hold the (tenant, origin) keyed lock for the
+// request's resolved origin (the proxy live writers hold it across their
+// whole flow and call this directly).
+func UpdateFrpcHanderLocked(c *app.Context, req *pb.UpdateFRPCRequest) (*pb.UpdateFRPCResponse, error) {
+	// REDACTED: never log the raw request — req.Config embeds the FRP auth
+	// token metadata (spec §10.9). Only ids and the config size are logged.
+	logger.Logger(c).Infof("update frpc, client: [%s], server: [%s], config bytes: [%d]",
+		req.GetClientId(), req.GetServerId(), len(req.GetConfig()))
 	var (
 		content     = req.GetConfig()
 		serverID    = req.GetServerId()
@@ -147,7 +198,11 @@ func UpdateFrpcHander(c *app.Context, req *pb.UpdateFRPCRequest) (*pb.UpdateFRPC
 	}
 
 	cliCfg.Metadatas[defs.FRPAuthTokenKey] = userInfo.GetToken()
-	cliCfg.Metadatas[defs.FRPClientIDKey] = reqClientID
+	// The wire target may differ from the route request: an origin-addressed
+	// first update creates a shadow child. The FRP metadata must identify the
+	// actual target handler, otherwise the Agent indexes it as the child while
+	// frps observes the stale origin identity.
+	cliCfg.Metadatas[defs.FRPClientIDKey] = cli.ClientID
 
 	newCfg := struct {
 		v1.ClientCommonConfig
@@ -186,29 +241,44 @@ func UpdateFrpcHander(c *app.Context, req *pb.UpdateFRPCRequest) (*pb.UpdateFRPC
 		ServerId: lo.ToPtr(serverID),
 		Config:   rawCliConf,
 	}
+	if cli.OriginClientID != "" {
+		// Every child update idempotently replaces the origin handler. This is
+		// required for a first shadow and also cleans historical stale origin
+		// handlers left by the old fire-and-forget path. Agent-side replacement
+		// treats a missing origin handler as a no-op.
+		cliReq.ReplaceClientId = lo.ToPtr(cli.OriginClientID)
+	}
 
-	go func() {
-		childCtx := c.Background()
-		cliToUpdate, err := dao.NewQuery(childCtx).GetClientByFilter(userInfo, &models.ClientEntity{ClientID: cli.OriginClientID}, nil)
+	// Synchronous agent ACK (round-8 I3): the previous go-func returned
+	// SUCCESS before the agent had applied anything — silent DB/agent
+	// drift. The handler now blocks until the physical agent ACKs (or
+	// the agentAckTimeout budget expires), validates the ACK payload and
+	// surfaces every failure as an error. The DB-first write above stays
+	// a KNOWN legacy debt (the D2 migration makes the commit atomic);
+	// the interim per-origin lock covers the whole span — read, DB write
+	// AND the ACK — so no other writer can interleave in between.
+	agentCtx := c.Background() // *app.Context for the DAO reads below
+	cliToUpdate, err := dao.NewQuery(agentCtx).GetClientByFilter(userInfo, &models.ClientEntity{ClientID: cli.OriginClientID}, nil)
+	if err != nil {
+		logger.Logger(agentCtx).WithError(err).Errorf("cannot get origin client, id: [%s]", cli.OriginClientID)
+		return nil, fmt.Errorf("cannot get origin client, id: [%s]: %w", cli.OriginClientID, err)
+	}
+
+	if cliToUpdate.Stopped {
+		logger.Logger(agentCtx).Infof("client [%s] is stopped, do not send update event", cliToUpdate.ClientID)
+	} else {
+		rpcCtx, cancel := context.WithTimeout(agentCtx, agentAckTimeout)
+		defer cancel()
+		resp, err := rpc.CallClientWithContext(rpcCtx, c.GetApp(), cliToUpdate.ClientID, pb.Event_EVENT_UPDATE_FRPC, cliReq)
 		if err != nil {
-			logger.Logger(childCtx).WithError(err).Errorf("cannot get origin client, id: [%s]", cliToUpdate.OriginClientID)
-			return
+			logger.Logger(agentCtx).WithError(err).Errorf("update event send to client error, server: [%s], origin client: [%s]", serverID, cliToUpdate.ClientID)
+			return nil, err
 		}
-
-		if cliToUpdate.Stopped {
-			logger.Logger(childCtx).Infof("client [%s] is stopped, do not send update event", cliToUpdate.OriginClientID)
-			return
+		if err := requireAckSuccess(resp, &pb.UpdateFRPCResponse{}); err != nil {
+			logger.Logger(agentCtx).WithError(err).Errorf("update frpc rejected by agent, server: [%s], origin client: [%s]", serverID, cliToUpdate.ClientID)
+			return nil, err
 		}
-
-		resp, err := rpc.CallClient(childCtx, cliToUpdate.ClientID, pb.Event_EVENT_UPDATE_FRPC, cliReq)
-		if err != nil {
-			logger.Logger(childCtx).WithError(err).Errorf("update event send to client error, server: [%s], client: [%+v], updated client: [%+v]", serverID, cliToUpdate, cli)
-		}
-
-		if resp == nil {
-			logger.Logger(childCtx).Errorf("cannot get response, server: [%s], client: [%s]", serverID, cliToUpdate.OriginClientID)
-		}
-	}()
+	}
 
 	logger.Logger(c).Infof("update frpc success, client id: [%s]", reqClientID)
 	return &pb.UpdateFRPCResponse{

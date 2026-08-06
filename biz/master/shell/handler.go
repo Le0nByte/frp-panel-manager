@@ -12,6 +12,7 @@ import (
 	"github.com/VaalaCat/frp-panel/services/app"
 	"github.com/VaalaCat/frp-panel/services/rpc"
 	"github.com/VaalaCat/frp-panel/utils/logger"
+	"github.com/VaalaCat/frp-panel/utils/wsorigin"
 	"github.com/fatedier/golib/log"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -233,10 +234,9 @@ func ptyHandler(c *gin.Context, appInstance app.Application) {
 
 func getUpgrader(c *gin.Context) websocket.Upgrader {
 	return websocket.Upgrader{
-		// cross origin domain
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
+		// Browser PTY endpoint: Origin is mandatory and must be same-origin
+		// with the request Host (spec §10.10).
+		CheckOrigin: wsorigin.SameOriginRequired(),
 		// 处理 Sec-WebSocket-Protocol Header
 		Subprotocols: []string{c.GetHeader("Sec-WebSocket-Protocol")},
 	}

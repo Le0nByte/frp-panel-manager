@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/VaalaCat/frp-panel/common"
 	"github.com/VaalaCat/frp-panel/pb"
@@ -29,7 +30,22 @@ func CallClientWrapper[R common.RespType](c *app.Context, clientID string, event
 }
 
 func CallClient(ctx *app.Context, clientID string, event pb.Event, msg proto.Message) (*pb.ClientMessage, error) {
-	sender := ctx.GetApp().GetClientsManager().Get(clientID)
+	ctx2, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	return CallClientWithContext(ctx2, ctx.GetApp(), clientID, event, msg)
+}
+
+// CallClientWithContext sends an event to an agent and waits for the
+// response, bounded by ctx. On timeout, cancellation or send failure the
+// session is removed from ClientRecvMap (spec §8.4).
+//
+// The session channel is deliberately NOT closed during cleanup: Recv may
+// already hold a reference and a concurrent close would panic on a late
+// send. The channel is buffered (1) and deleted from the map, which makes
+// late responses safe by construction: either the map lookup misses (the
+// response is dropped) or the send lands in the buffer and is GC'd.
+func CallClientWithContext(ctx context.Context, appInstance app.Application, clientID string, event pb.Event, msg proto.Message) (*pb.ClientMessage, error) {
+	sender := appInstance.GetClientsManager().Get(clientID)
 	if sender == nil {
 		logger.Logger(ctx).Errorf("cannot get client, id: [%s]", clientID)
 		return nil, fmt.Errorf("cannot get client, id: [%s]", clientID)
@@ -48,32 +64,35 @@ func CallClient(ctx *app.Context, clientID string, event pb.Event, msg proto.Mes
 		ClientId:  clientID,
 	}
 
-	ctx.GetApp().GetClientRecvMap().Store(req.SessionId, make(chan *pb.ClientMessage))
+	respCh := make(chan *pb.ClientMessage, 1)
+	appInstance.GetClientRecvMap().Store(req.SessionId, respCh)
+	defer func() {
+		appInstance.GetClientRecvMap().Delete(req.SessionId)
+	}()
+
 	err = sender.Conn.Send(req)
 	if err != nil {
 		logger.Logger(context.Background()).WithError(err).Errorf("cannot send")
-		ctx.GetApp().GetClientsManager().Remove(clientID)
+		appInstance.GetClientsManager().Remove(clientID)
 		return nil, err
 	}
-	respChAny, ok := ctx.GetApp().GetClientRecvMap().Load(req.SessionId)
-	if !ok {
-		logger.Logger(ctx).Fatalf("cannot load")
-	}
 
-	respCh, ok := respChAny.(chan *pb.ClientMessage)
-	if !ok {
-		logger.Logger(ctx).Fatalf("cannot cast")
+	select {
+	case <-ctx.Done():
+		logger.Logger(ctx).WithError(ctx.Err()).Errorf("rpc call to client [%s] event [%s] timed out or cancelled", clientID, event)
+		return nil, fmt.Errorf("rpc call to client [%s] event [%s] timeout or cancelled: %w", clientID, event, ctx.Err())
+	case resp := <-respCh:
+		if resp.Event == pb.Event_EVENT_ERROR {
+			return nil, fmt.Errorf("client return error: %s", resp.Data)
+		}
+		return resp, nil
 	}
-
-	resp := <-respCh
-	if resp.Event == pb.Event_EVENT_ERROR {
-		return nil, fmt.Errorf("client return error: %s", resp.Data)
-	}
-
-	close(respCh)
-	ctx.GetApp().GetClientRecvMap().Delete(req.SessionId)
-	return resp, nil
 }
+
+// recvRetryDelay bounds the poll rate of Recv while the target agent is
+// not registered (offline): the pump waits between attempts instead of
+// busy-looping on the manager. Overridable in tests.
+var recvRetryDelay = 100 * time.Millisecond
 
 func Recv(appInstance app.Application, clientID string) chan bool {
 	done := make(chan bool)
@@ -84,6 +103,14 @@ func Recv(appInstance app.Application, clientID string) chan bool {
 			reciver := appInstance.GetClientsManager().Get(clientID)
 			if reciver == nil {
 				log.Errorf("cannot get client")
+				// Back off before retrying; also stoppable via the
+				// context so a future cancellation never strands the
+				// pump in a bare sleep.
+				select {
+				case <-time.After(recvRetryDelay):
+				case <-c.Done():
+					return
+				}
 				continue
 			}
 			resp, err := reciver.Conn.Recv()
@@ -100,7 +127,9 @@ func Recv(appInstance app.Application, clientID string) chan bool {
 
 			respChAny, ok := appInstance.GetClientRecvMap().Load(resp.SessionId)
 			if !ok {
-				log.Errorf("cannot load")
+				// session already cleaned up (timeout/cancel): late
+				// response is discarded safely
+				log.Debugf("drop late response for unknown session [%s]", resp.SessionId)
 				continue
 			}
 
@@ -110,7 +139,12 @@ func Recv(appInstance app.Application, clientID string) chan bool {
 				continue
 			}
 			log.Debugf("recv success, resp: %+v", resp)
-			respCh <- resp
+			select {
+			case respCh <- resp:
+			default:
+				// channel full or nobody reading: drop to avoid blocking
+				log.Debugf("drop response for full session channel [%s]", resp.SessionId)
+			}
 		}
 	}()
 	return done

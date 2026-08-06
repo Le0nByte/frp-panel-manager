@@ -369,13 +369,7 @@ export const ServerActions: React.FC<ServerItemProps> = ({ server, table }) => {
             {t('server.actions_menu.copy_command')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => {
-              router.push({ pathname: '/serveredit', query: { serverID: server.id } })
-            }}
-          >
-            {t('server.actions_menu.edit_config')}
-          </DropdownMenuItem>
+
           <DropdownMenuItem
             onClick={() => {
               try {

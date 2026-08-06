@@ -1,0 +1,8 @@
+[Unit]
+Description=FRP Panel memory observation placeholder
+Documentation=file:/opt/frp-panel/docs/ops-runbook.md
+
+[Service]
+Type=oneshot
+# Replace with the site's monitored command before enabling this unit.
+ExecStart=/usr/bin/printf FRP-Panel-memory-alert-command-not-configured

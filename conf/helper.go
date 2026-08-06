@@ -29,7 +29,9 @@ func JWTSecret(cfg Config) string {
 }
 
 func MasterAPIListenAddr(cfg Config) string {
-	return fmt.Sprintf(":%d", cfg.Master.APIPort)
+	// spec §10.1: the management API binds loopback only; the reverse proxy
+	// owns public HTTPS.
+	return fmt.Sprintf("127.0.0.1:%d", cfg.Master.APIPort)
 }
 
 func ServerAPIListenAddr(cfg Config) string {
@@ -97,6 +99,23 @@ func GetAPIURL(cfg Config) string {
 
 func GetCertTemplate(cfg Config) *x509.Certificate {
 	now := time.Now()
+	host := cfg.Master.APIHost
+
+	// spec §10.4: a public IP in MASTER_API_HOST goes into the IPAddresses
+	// SAN, a domain into DNSNames. Loopback is always usable via IP.
+	var (
+		dnsNames    []string
+		ipAddresses = []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}
+	)
+	switch {
+	case host == "":
+		// empty host: keep loopback-only SAN, no empty DNSNames entry
+	case net.ParseIP(host) != nil:
+		ipAddresses = append(ipAddresses, net.ParseIP(host))
+	default:
+		dnsNames = []string{host}
+	}
+
 	return &x509.Certificate{
 		SerialNumber: big.NewInt(now.Unix()),
 		Subject: pkix.Name{
@@ -106,8 +125,8 @@ func GetCertTemplate(cfg Config) *x509.Certificate {
 			OrganizationalUnit: []string{"frp-panel"},
 		},
 		SignatureAlgorithm:    x509.SHA512WithRSA,
-		DNSNames:              []string{cfg.Master.APIHost},
-		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		DNSNames:              dnsNames,
+		IPAddresses:           ipAddresses,
 		NotBefore:             now,
 		NotAfter:              now.AddDate(10, 0, 0),
 		SubjectKeyId:          []byte{102, 114, 112, 45, 112, 97, 110, 101, 108},
@@ -127,7 +146,10 @@ type LisOpt struct {
 }
 
 func GetListener(c context.Context, cfg Config) LisOpt {
-	runAPI := RPCListenAddr(cfg) != MasterAPIListenAddr(cfg)
+	// The API listener binds loopback (spec §10.1) while the RPC/mux
+	// listener binds all interfaces, so compare ports — not the formatted
+	// addresses — to decide whether a separate API listener is needed.
+	runAPI := cfg.Master.APIPort != cfg.Master.RPCPort
 
 	muxLis, err := net.Listen("tcp", RPCListenAddr(cfg))
 	if err != nil {

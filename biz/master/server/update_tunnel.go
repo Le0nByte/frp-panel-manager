@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/VaalaCat/frp-panel/common"
@@ -17,8 +18,23 @@ import (
 	"github.com/samber/lo"
 )
 
+var ErrLegacyFRPSUpdateDisabled = errors.New("legacy raw frps update endpoint is disabled; use the managed proxy API")
+
+// RejectLegacyFRPSUpdate keeps the public route fail-closed. Raw FRPS JSON
+// performs a DB-first, asynchronous Agent update and cannot satisfy the
+// transaction/snapshot/ACK/rollback contract. Agent-side EVENT_UPDATE_FRPS
+// handling remains available to managed internal flows.
+func RejectLegacyFRPSUpdate(_ *app.Context, _ *pb.UpdateFRPSRequest) (*pb.UpdateFRPSResponse, error) {
+	return &pb.UpdateFRPSResponse{
+		Status: &pb.Status{
+			Code:    pb.RespCode_RESP_CODE_INVALID,
+			Message: "legacy raw frps update endpoint is disabled; use the managed proxy API",
+		},
+	}, ErrLegacyFRPSUpdateDisabled
+}
+
 func UpdateFrpsHander(c *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPSResponse, error) {
-	logger.Logger(c).Infof("update frps, req: [%+v]", req)
+	logger.Logger(c).Info(UpdateFRPSReqSummary(req.GetServerId(), req.GetConfig()))
 	var (
 		serverID  = req.GetServerId()
 		configStr = req.GetConfig()
@@ -80,4 +96,13 @@ func UpdateFrpsHander(c *app.Context, req *pb.UpdateFRPSRequest) (*pb.UpdateFRPS
 	return &pb.UpdateFRPSResponse{
 		Status: &pb.Status{Code: pb.RespCode_RESP_CODE_SUCCESS, Message: "ok"},
 	}, nil
+}
+
+// UpdateFRPSReqSummary returns a safe log summary of an update-request:
+// only the server ID and the config byte length are included. The raw FRPS
+// config bytes (which embed the FRP auth token) are never logged (spec
+// §10.9). The signature is request-agnostic so sibling handlers (e.g.
+// UpdateFRPC) can reuse it.
+func UpdateFRPSReqSummary(serverID string, config []byte) string {
+	return fmt.Sprintf("update frps, req: {server_id: %q, config_size: %d bytes}", serverID, len(config))
 }

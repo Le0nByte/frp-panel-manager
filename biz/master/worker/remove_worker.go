@@ -32,7 +32,11 @@ func RemoveWorker(ctx *app.Context, req *pb.RemoveWorkerRequest) (*pb.RemoveWork
 		for _, ingressToDelete := range ingressesToDelete {
 			logger.Logger(ctx).Infof("start to remove worker ingress on server: [%s] client: [%s], name: [%s]", ingressToDelete.ServerID, ingressToDelete.ClientID, ingressToDelete.Name)
 
-			resp, err := proxy.DeleteProxyConfig(ctx, &pb.DeleteProxyConfigRequest{
+			// worker ingress teardown keeps the LEGACY delete contract (no
+			// idempotency/UUID gate — worker ingress may be HTTP/read-only or a
+			// legacy world): DeleteProxyConfigLegacy, never the transactional
+			// /delete_config route.
+			resp, err := proxy.DeleteProxyConfigLegacy(ctx, &pb.DeleteProxyConfigRequest{
 				ServerId: lo.ToPtr(ingressToDelete.ServerID),
 				ClientId: lo.ToPtr(ingressToDelete.ClientID),
 				Name:     lo.ToPtr(ingressToDelete.Name),

@@ -34,6 +34,7 @@ var (
 		NewWSListener,
 		NewMasterTLSConfig,
 		NewWSUpgrader,
+		NewRPCGuard,
 		streamlog.NewClientLogManager,
 		// wireguard.NewWireGuardManager,
 		fx.Annotate(NewWatcher, fx.ResultTags(`name:"masterTaskManager"`)),

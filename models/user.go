@@ -38,9 +38,15 @@ type UserEntity struct {
 	Role      string `json:"role"`
 	TenantID  int    `json:"tenant_id"`
 	Token     string `json:"token"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	// SessionVersion is the per-user session generation (spec §10.7.8).
+	// Every login token carries it as a JWT claim; the local-only admin
+	// reset-password command bumps it so all previously issued tokens are
+	// invalidated. Existing rows are upgraded by AutoMigrate to 1. It never
+	// leaves the server (json:"-").
+	SessionVersion int64 `json:"-" gorm:"not null;default:1"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      gorm.DeletedAt `gorm:"index"`
 
 	Groups []*UserGroup `json:"groups,omitempty" gorm:"many2many:user_group_memberships;"`
 }
@@ -103,6 +109,17 @@ func (u *UserEntity) Valid() bool {
 
 func (u *UserEntity) IsAdmin() bool {
 	return u.Role == defs.UserRole_Admin
+}
+
+// EffectiveSessionVersion returns the session version used for JWT session
+// checks (spec §10.7.8): rows written before the session-version feature
+// carry 0 and count as version 1 (the initial generation). A nil entity
+// also counts as 1 (fail-closed callers never panic).
+func (u *UserEntity) EffectiveSessionVersion() int64 {
+	if u == nil || u.SessionVersion < 1 {
+		return 1
+	}
+	return u.SessionVersion
 }
 
 func (u *User) TableName() string {

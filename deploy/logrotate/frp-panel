@@ -1,0 +1,13 @@
+/opt/frp-panel/data/log/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 frp-panel frp-panel
+    sharedscripts
+    postrotate
+        /bin/systemctl kill -s HUP frp-panel.service >/dev/null 2>&1 || true
+    endscript
+}

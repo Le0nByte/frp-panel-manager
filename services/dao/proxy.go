@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VaalaCat/frp-panel/defs"
 	"github.com/VaalaCat/frp-panel/models"
 	"github.com/VaalaCat/frp-panel/pb"
 	"github.com/VaalaCat/frp-panel/utils"
@@ -30,6 +31,16 @@ type ProxyQuery interface {
 	ListProxyConfigsWithKeyword(userInfo models.UserInfo, page, pageSize int, keyword string) ([]*models.ProxyConfig, error)
 	ListProxyConfigs(userInfo models.UserInfo, page, pageSize int) ([]*models.ProxyConfig, error)
 	GetProxyConfigByOriginClientIDAndName(userInfo models.UserInfo, clientID string, name string) (*models.ProxyConfig, error)
+	// GetProxyConfigByID loads ONE proxy_config row by id in tenant+user
+	// scope (D2c-C rollback locates the CURRENT rule row by the source
+	// transaction's proxy_id). Missing or cross-tenant -> gorm.ErrRecordNotFound.
+	GetProxyConfigByID(userInfo models.UserInfo, proxyID uint) (*models.ProxyConfig, error)
+	// GetProxyConfigByOriginOrClientAndName locates the OLD rule for a
+	// safe update by natural key (server_id, name) across BOTH row shapes
+	// (legacy: client_id=origin, origin_client_id empty; shadowed:
+	// origin_client_id=origin). 0 rows -> gorm.ErrRecordNotFound,
+	// >1 rows -> defs.ErrAmbiguousProxyTarget (fail closed).
+	GetProxyConfigByOriginOrClientAndName(userInfo models.UserInfo, originID, serverID, name string) (*models.ProxyConfig, error)
 	CountProxyConfigs(userInfo models.UserInfo) (int64, error)
 	CountProxyConfigsWithFilters(userInfo models.UserInfo, filters *models.ProxyConfigEntity) (int64, error)
 	CountProxyConfigsWithFiltersAndKeyword(userInfo models.UserInfo, filters *models.ProxyConfigEntity, keyword string) (int64, error)
@@ -547,6 +558,58 @@ func (q *proxyQuery) GetProxyConfigByOriginClientIDAndName(userInfo models.UserI
 		return nil, err
 	}
 	return item, nil
+}
+
+// GetProxyConfigByID loads ONE proxy_config row by its primary key in
+// tenant+user scope. The rollback coordinator uses it to locate the CURRENT
+// rule row from the source transaction's proxy_id; a missing or cross-tenant
+// row surfaces gorm.ErrRecordNotFound (no existence leak).
+func (q *proxyQuery) GetProxyConfigByID(userInfo models.UserInfo, proxyID uint) (*models.ProxyConfig, error) {
+	if err := requireUserInfo(userInfo); err != nil {
+		return nil, err
+	}
+	db := q.ctx.GetApp().GetDBManager().GetDefaultDB()
+	item := &models.ProxyConfig{}
+	err := db.Where("id = ? AND tenant_id = ? AND user_id = ?",
+		proxyID, userInfo.GetTenantID(), userInfo.GetUserID()).First(item).Error
+	if err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+// GetProxyConfigByOriginOrClientAndName locates the OLD rule for a safe
+// update by its natural key (server_id, name) across BOTH row shapes a
+// legacy-or-shadow world can produce: a legacy row stores the origin id in
+// client_id (origin_client_id empty), a shadowed row stores it in
+// origin_client_id (client_id = the child). The OR is written as ONE SQL
+// expression inside a single WHERE, so the tenant/user scope can never be
+// lost the way separate GORM .Or() chains can (the task's explicit trap).
+// At most 2 rows are fetched; 0 rows keeps the DAO convention of surfacing
+// gorm.ErrRecordNotFound, and a double match fails CLOSED with
+// defs.ErrAmbiguousProxyTarget instead of guessing which row is the real
+// old rule.
+func (q *proxyQuery) GetProxyConfigByOriginOrClientAndName(userInfo models.UserInfo, originID, serverID, name string) (*models.ProxyConfig, error) {
+	if originID == "" || serverID == "" || name == "" {
+		return nil, fmt.Errorf("invalid origin client id, server id or name")
+	}
+	db := q.ctx.GetApp().GetDBManager().GetDefaultDB()
+	var items []*models.ProxyConfig
+	err := db.Where(
+		"tenant_id = ? AND user_id = ? AND server_id = ? AND name = ? AND (origin_client_id = ? OR client_id = ?)",
+		userInfo.GetTenantID(), userInfo.GetUserID(), serverID, name, originID, originID,
+	).Limit(2).Find(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	switch len(items) {
+	case 0:
+		return nil, gorm.ErrRecordNotFound
+	case 1:
+		return items[0], nil
+	default:
+		return nil, defs.ErrAmbiguousProxyTarget
+	}
 }
 
 func (q *proxyQuery) CountProxyConfigs(userInfo models.UserInfo) (int64, error) {

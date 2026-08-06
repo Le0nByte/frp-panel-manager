@@ -2,11 +2,12 @@
 __debug*
 .env
 tmp
+/.tmp/
 *.db*
-frp-panel
+/frp-panel
 out
 cmd/out
-frp-panel*
+/frp-panel*
 dist/
 
 /coverage

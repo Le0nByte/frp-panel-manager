@@ -13,6 +13,7 @@ type ClientQuery interface {
 	ValidateClientSecret(clientID, clientSecret string) (*models.ClientEntity, error)
 	AdminGetClientByClientID(clientID string) (*models.Client, error)
 	GetClientByClientID(userInfo models.UserInfo, clientID string) (*models.Client, error)
+	GetOriginClientID(userInfo models.UserInfo, clientID string) (string, error)
 	GetClientsByClientIDs(userInfo models.UserInfo, clientIDs []string) ([]*models.Client, error)
 	GetClientByFilter(userInfo models.UserInfo, client *models.ClientEntity, shadow *bool) (*models.ClientEntity, error)
 	GetClientByOriginClientID(originClientID string) (*models.ClientEntity, error)
@@ -42,7 +43,7 @@ func newClientMutation(base *mutationImpl) ClientMutation { return &clientMutati
 
 func (q *clientQuery) ValidateClientSecret(clientID, clientSecret string) (*models.ClientEntity, error) {
 	if clientID == "" || clientSecret == "" {
-		return nil, fmt.Errorf("invalid client id or client secret")
+		return nil, ErrInvalidClientSecret
 	}
 	db := q.ctx.GetApp().GetDBManager().GetDefaultDB()
 	c := &models.Client{}
@@ -52,10 +53,13 @@ func (q *clientQuery) ValidateClientSecret(clientID, clientSecret string) (*mode
 		}}).
 		First(c).Error
 	if err != nil {
+		// gorm.ErrRecordNotFound and any other DB error pass through
+		// unchanged; only empty/mismatch secret inputs are the typed
+		// sentinel (I3-A).
 		return nil, err
 	}
 	if c.ConnectSecret != clientSecret {
-		return nil, fmt.Errorf("invalid client secret")
+		return nil, ErrInvalidClientSecret
 	}
 	return c.ClientEntity, nil
 }
@@ -96,6 +100,23 @@ func (q *clientQuery) GetClientByClientID(userInfo models.UserInfo, clientID str
 	return c, nil
 }
 
+// GetOriginClientID resolves the ORIGIN client id for a request whose
+// client id may address the origin itself or one of its shadow children:
+// the row's OriginClientID wins when set, otherwise the id is its own
+// origin. This is the tenant-scoped read performed BEFORE acquiring the
+// (tenant, origin) keyed lock — the locked body must re-query the rows
+// it operates on instead of caching this result.
+func (q *clientQuery) GetOriginClientID(userInfo models.UserInfo, clientID string) (string, error) {
+	cli, err := q.GetClientByClientID(userInfo, clientID)
+	if err != nil {
+		return "", err
+	}
+	if len(cli.ClientEntity.OriginClientID) != 0 {
+		return cli.ClientEntity.OriginClientID, nil
+	}
+	return cli.ClientEntity.ClientID, nil
+}
+
 func (q *clientQuery) GetClientsByClientIDs(userInfo models.UserInfo, clientIDs []string) ([]*models.Client, error) {
 	if len(clientIDs) == 0 {
 		return nil, fmt.Errorf("invalid client ids")
@@ -126,16 +147,21 @@ func (q *clientQuery) GetClientByFilter(userInfo models.UserInfo, client *models
 	if len(client.ServerID) != 0 {
 		filter.ServerID = client.ServerID
 	}
-	if shadow != nil {
-		filter.IsShadow = *shadow
-	}
 	c := &models.Client{}
 
+	db = db.Where(&models.Client{ClientEntity: &models.ClientEntity{
+		UserID:   userInfo.GetUserID(),
+		TenantID: userInfo.GetTenantID(),
+	}})
+	if shadow != nil {
+		// GORM struct Where conditions skip zero-value fields: assigning
+		// filter.IsShadow = false would silently DROP the condition and a
+		// shadow=false query would match the shadowed origin row too. The
+		// flag must be an explicit SQL condition.
+		db = db.Where("is_shadow = ?", *shadow)
+	}
+
 	err := db.
-		Where(&models.Client{ClientEntity: &models.ClientEntity{
-			UserID:   userInfo.GetUserID(),
-			TenantID: userInfo.GetTenantID(),
-		}}).
 		Where(filter).
 		First(c).Error
 	if err != nil {

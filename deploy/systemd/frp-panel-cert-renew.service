@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew FRP Panel certificate and reload Nginx
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/frp-panel/deploy/certbot/renew-frp-panel.sh
+ExecStartPost=/opt/frp-panel/deploy/certbot/check-expiry.sh

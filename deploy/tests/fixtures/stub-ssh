@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Test stub for ssh. Records invocations to $STUB_LOG.
+# STUB_SSH_OUTPUT is printed (default "0", i.e. `id -u` prints root's uid).
+# STUB_SSH_EXIT controls the exit code (default 0).
+set -u
+printf 'ssh %s\n' "$*" >> "${STUB_LOG:?STUB_LOG must be set}"
+printf '%s\n' "${STUB_SSH_OUTPUT:-0}"
+exit "${STUB_SSH_EXIT:-0}"

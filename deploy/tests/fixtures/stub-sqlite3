@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Test stub for sqlite3. Records invocations to $STUB_LOG.
+# Simulates ".backup 'FILE'" by writing a real file so manifest hashes verify.
+# STUB_SQLITE3_FAIL=1 makes the stub fail (exit 1).
+set -u
+printf 'sqlite3 %s\n' "$*" >> "${STUB_LOG:?STUB_LOG must be set}"
+[[ "${STUB_SQLITE3_FAIL:-0}" != "1" ]] || exit 1
+for arg in "$@"; do
+  if [[ "$arg" == .backup* ]]; then
+    file="${arg#.backup }"
+    file="${file//\'/}"
+    if [[ -n "$file" ]]; then
+      mkdir -p "$(dirname "$file")"
+      printf 'stub-sqlite3-backup-content-v1\n' > "$file"
+    fi
+    exit 0
+  fi
+done
+exit 0

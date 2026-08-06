@@ -28,18 +28,13 @@ The application loads configuration in the following order:
 | bool   | `APP_COOKIE_SECURE`                    | `false`             | Whether the cookie is marked Secure                                                                            |
 | bool   | `APP_COOKIE_HTTP_ONLY`                 | `true`              | Whether the cookie is HTTP-only                                                                                |
 | bool   | `APP_ENABLE_REGISTER`                  | `false`             | Enable user registration. Only the first user can register (administrator).                                    |
-| int    | `MASTER_API_PORT`                      | `9000`              | Master API port                                                                                                |
+| int    | `MASTER_API_PORT`                      | `9100`              | Master API port (loopback only; public access is provided by the reverse proxy)                              |
 | string | `MASTER_API_HOST`                      | –                   | Master API host (can be behind a reverse proxy or CDN)                                                         |
 | string | `MASTER_API_SCHEME`                    | `http`              | Master API scheme (for client command generation; HTTPS must be handled via reverse proxy)                     |
 | int    | `MASTER_CACHE_SIZE`                    | `10`                | Cache size in MB                                                                                                |
 | string | `MASTER_RPC_HOST`                      | `127.0.0.1`         | Master RPC host or public IP                                                                                    |
-| int    | `MASTER_RPC_PORT`                      | `9001`              | Master RPC port                                                                                                |
-| bool   | `MASTER_COMPATIBLE_MODE`               | `false`             | Compatibility mode for official frp clients                                                                    |
+| int    | `MASTER_RPC_PORT`                      | `9101`              | Master public TLS gRPC port                                                                                   |
 | string | `MASTER_INTERNAL_FRP_SERVER_HOST`      | –                   | Host for Master’s built-in frps instance (for client connections)                                              |
-| int    | `MASTER_INTERNAL_FRP_SERVER_PORT`      | `9002`              | Port for Master’s built-in frps instance (for client connections)                                              |
-| string | `MASTER_INTERNAL_FRP_AUTH_SERVER_HOST` | `127.0.0.1`         | Host for Master’s built-in frps authentication service                                                         |
-| int    | `MASTER_INTERNAL_FRP_AUTH_SERVER_PORT` | `8999`              | Port for Master’s built-in frps authentication service                                                         |
-| string | `MASTER_INTERNAL_FRP_AUTH_SERVER_PATH` | `/auth`             | Path for Master’s built-in frps authentication service                                                         |
 | int    | `SERVER_API_PORT`                      | `8999`              | Server API port                                                                                                |
 | string | `DB_TYPE`                              | `sqlite3`           | Database type (e.g., `mysql`, `postgres`, `sqlite3`)                                                           |
 | string | `DB_DSN`                               | `data.db`           | Database DSN. For `sqlite3`, this is a file path (default in working directory). For other databases, use DSN. |

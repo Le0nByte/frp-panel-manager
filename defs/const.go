@@ -23,6 +23,13 @@ const (
 	FRPClientIDKey      = "x-vaala-frp-client-id"
 )
 
+// SessionVersionKey is the JWT claim carrying the user's session version
+// (spec §10.7.8). Login tokens carry the user's current version; the local
+// admin reset-password command bumps the stored version so every previously
+// issued token (claimed or legacy) becomes invalid. Tokens minted before
+// this feature have no claim and are treated as version 1.
+const SessionVersionKey = "x-vaala-session-version"
+
 const (
 	ErrInvalidRequest   = "invalid request"
 	ErrUserInfoNotValid = "user info not valid"

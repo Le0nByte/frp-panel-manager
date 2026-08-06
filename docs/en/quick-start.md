@@ -22,7 +22,7 @@ Note: There are two binary versions—one is client-only, and the other is a ful
 
 The client-only version can only execute the `client` command (no client parameters required) and its filename includes the “client” identifier.
 
-After starting, the default example can be accessed at `http://IP:9000`
+After starting, the default example can be accessed at `https://IP:9443`
 
 The first registered user is the administrator by default. Registration of additional users is disabled by default. To enable it, add the parameter `APP_ENABLE_REGISTER=true` in the Master’s startup command or configuration file.
 

@@ -6,7 +6,7 @@ We recommend deploying the Server via Docker! Direct installation on the host is
 
 > The `default` server cannot be deployed separately. It should be configured in the webui. Repeated deployment will cause the `default` server to malfunction.
 
-> The `server` will occupy port 8999. Please ensure that this port is not occupied. If there is a conflict, please modify the `SERVER_API_PORT` and `INTERNAL_FRP_AUTH_SERVER_PORT` environment variables of the `server`, ensuring that the two ports are the same. The `default` server will also occupy this port, so you cannot deploy the `server` and `default` server on the same machine with **default configuration**. You need to modify the environment variables of the `server` to avoid conflicts.
+> The `server` uses port 8999. If it conflicts, change `SERVER_API_PORT`. The built-in `default` server also uses this port, so do not run both on the same host with the default configuration.
 
 > If you only have one public-facing server to manage, you can use the Master’s built-in `default` server without deploying a separate Server. Remember to configure the `default` server after starting the Master.
 
@@ -27,13 +27,13 @@ Then click **Save**.
 After refreshing, your new Server appears in the list. Click the **Key (show startup command)** field for that Server and copy the generated command, e.g.:
 
 ```bash
-frp-panel server -s abc -i user.s.server1 --api-url http://frpp.example.com:9000 --rpc-url grpc://frpp-rpc.example.com:9001
+frp-panel server -s abc -i user.s.server1 --api-url https://frpp.example.com --rpc-url grpc://frpp-rpc.example.com:9101
 ```
 
-If you are using a reverse-proxy with TLS, proxy external port 443 to the Master’s port 9000 (API) over HTTP upstream, and adjust the command accordingly:
+If you are using a reverse-proxy with TLS, proxy external port 443 to the Master’s loopback port 9100 (API) over HTTP upstream, and adjust the command accordingly:
 
 ```bash
-frp-panel server -s abc -i user.s.server1 --api-url https://frpp.example.com:443 --rpc-url wss://frpp.example.com:443
+frp-panel server -s abc -i user.s.server1 --api-url https://frpp.example.com:443 --rpc-url grpc://frpp-rpc.example.com:9101
 ```
 
 ### 2. Installation
@@ -50,7 +50,7 @@ services:
     container_name: frp-panel-server
     network_mode: host
     restart: unless-stopped
-    command: server -s abc -i user.s.server1 --api-url http://frpp.example.com:9000 --rpc-url grpc://frpp-rpc.example.com:9001
+    command: server -s abc -i user.s.server1 --api-url https://frpp.example.com --rpc-url grpc://frpp-rpc.example.com:9101
 ```
 
 #### Direct Execution

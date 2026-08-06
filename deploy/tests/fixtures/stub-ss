@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Test stub for ss (socket stats). Records invocations to $STUB_LOG.
+# Scriptable behavior via:
+#   STUB_SS_OUTPUT            static output printed on every call (default empty)
+#   STUB_SS_SEQUENCE_FILE     file whose first line is consumed per call and
+#                             removed; falls back to STUB_SS_OUTPUT when empty.
+set -u
+printf 'ss %s\n' "$*" >> "${STUB_LOG:?STUB_LOG must be set}"
+if [[ -n "${STUB_SS_SEQUENCE_FILE:-}" && -s "$STUB_SS_SEQUENCE_FILE" ]]; then
+  line="$(head -n1 "$STUB_SS_SEQUENCE_FILE")"
+  sed -i '1d' "$STUB_SS_SEQUENCE_FILE"
+  printf '%s\n' "$line"
+  exit 0
+fi
+printf '%s\n' "${STUB_SS_OUTPUT:-}"

@@ -22,7 +22,7 @@ frp-panel 可选 docker 和直接运行模式部署，直接部署请到 release
 
 客户端版只能执行 client 命令(无需 client 参数)，仅客户端版的名字会带有 client 标识
 
-启动过后默认例子的访问地址为 `http://IP:9000`
+启动过后默认例子的访问地址为 `https://IP:9443`
 
 默认第一个注册的用户是管理员。且默认不开放注册多用户，如果需要，请在 Master 启动命令或配置文件中添加参数：`APP_ENABLE_REGISTER=true`
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -21,12 +20,14 @@ import (
 	"github.com/VaalaCat/frp-panel/services/mux"
 	"github.com/VaalaCat/frp-panel/services/rbac"
 	"github.com/VaalaCat/frp-panel/services/rpc"
+	"github.com/VaalaCat/frp-panel/services/rpcguard"
 	"github.com/VaalaCat/frp-panel/services/watcher"
 	"github.com/VaalaCat/frp-panel/services/wg"
 	"github.com/VaalaCat/frp-panel/services/workerd"
 	"github.com/VaalaCat/frp-panel/utils"
 	"github.com/VaalaCat/frp-panel/utils/logger"
 	"github.com/VaalaCat/frp-panel/utils/wsgrpc"
+	"github.com/VaalaCat/frp-panel/utils/wsorigin"
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -154,12 +155,30 @@ func NewMasterTLSConfig(ctx *app.Context) *tls.Config {
 	return dao.NewMutation(ctx).InitCert(conf.GetCertTemplate(ctx.GetApp().GetConfig()))
 }
 
-func NewTLSMasterService(appInstance app.Application, masterTLSConfig *tls.Config) master.MasterService {
-	return master.NewMasterService(appInstance, credentials.NewTLS(masterTLSConfig))
+// NewRPCGuard builds the process-wide I3-A/I3-B admission guard. fx
+// invokes this provider ONCE per container, so every MasterService that
+// depends on *rpcguard.Guard (TLS/HTTP/WS) shares the SAME instance —
+// the admission state machine is process-local by design. Flush failures
+// are written to the safe logger only; no secret material ever reaches
+// the sink or the audit rows. The Run loop (audit DB flush) is started in
+// I3-C.
+func NewRPCGuard(ctx *app.Context) *rpcguard.Guard {
+	cfg, enabled := conf.RPCGuardConfig(ctx.GetApp().GetConfig())
+	return rpcguard.NewGuard(
+		rpcguard.WithConfig(cfg),
+		rpcguard.WithEnabled(enabled),
+		rpcguard.WithErrorSink(func(err error) {
+			logger.Logger(ctx).WithError(err).Errorf("rpc guard audit flush failed")
+		}),
+	)
 }
 
-func NewHTTPMasterService(appInstance app.Application) master.MasterService {
-	return master.NewMasterService(appInstance, insecure.NewCredentials())
+func NewTLSMasterService(appInstance app.Application, masterTLSConfig *tls.Config, guard *rpcguard.Guard) master.MasterService {
+	return master.NewMasterService(appInstance, credentials.NewTLS(masterTLSConfig), guard)
+}
+
+func NewHTTPMasterService(appInstance app.Application, guard *rpcguard.Guard) master.MasterService {
+	return master.NewMasterService(appInstance, insecure.NewCredentials(), guard)
 }
 
 func NewMux(param struct {
@@ -169,8 +188,9 @@ func NewMux(param struct {
 	Router        *gin.Engine          `name:"masterRouter"`
 	LisOpt        conf.LisOpt
 	TLSCfg        *tls.Config
+	RPCGuard      *rpcguard.Guard
 }) mux.MuxServer {
-	return mux.NewMux(param.MasterService.GetServer(), param.Router, param.LisOpt.MuxLis, param.TLSCfg)
+	return mux.NewMux(param.MasterService.GetServer(), param.Router, param.LisOpt.MuxLis, param.TLSCfg, param.RPCGuard)
 }
 
 func NewHTTPMux(param struct {
@@ -197,7 +217,10 @@ func NewWSGrpcHandler(ctx *app.Context, ws *wsgrpc.WSListener, upgrader *websock
 
 func NewWSUpgrader(ctx *app.Context, cfg conf.Config) *websocket.Upgrader {
 	return &websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
+		// /wsgrpc is the agent channel: non-browser clients may omit Origin,
+		// but a present Origin must be same-origin with the request Host
+		// (spec §10.10).
+		CheckOrigin: wsorigin.SameOriginAllowEmpty(),
 	}
 }
 
@@ -221,7 +244,7 @@ func NewServerCred(appInstance app.Application) credentials.TransportCredentials
 	clientSecret := cfg.Client.Secret
 	ctx := context.Background()
 
-	cred, err := utils.TLSClientCertNoValidate(rpc.GetClientCert(appInstance, clientID, clientSecret, pb.ClientType_CLIENT_TYPE_FRPS))
+	cred, err := utils.TLSClientCertWithSkipVerify(rpc.GetClientCert(appInstance, clientID, clientSecret, pb.ClientType_CLIENT_TYPE_FRPS), cfg.Client.TLSInsecureSkipVerify)
 	if err != nil {
 		logger.Logger(ctx).WithError(err).Fatal("new tls client cert failed")
 	}
@@ -236,7 +259,7 @@ func NewClientCred(appInstance app.Application) credentials.TransportCredentials
 	clientSecret := cfg.Client.Secret
 	ctx := context.Background()
 
-	cred, err := utils.TLSClientCertNoValidate(rpc.GetClientCert(appInstance, clientID, clientSecret, pb.ClientType_CLIENT_TYPE_FRPC))
+	cred, err := utils.TLSClientCertWithSkipVerify(rpc.GetClientCert(appInstance, clientID, clientSecret, pb.ClientType_CLIENT_TYPE_FRPC), cfg.Client.TLSInsecureSkipVerify)
 	if err != nil {
 		logger.Logger(ctx).WithError(err).Fatal("new tls client cert failed")
 	}
@@ -319,12 +342,12 @@ func NewAutoJoin(param struct {
 	}
 
 	if autoJoin {
-		logger.Logger(ctx).Infof("start to try join master, clientID: [%s], clientSecret: [%s]", clientID, clientSecret)
+		logger.Logger(ctx).Infof("start to try join master, clientID: [%s]", clientID)
 		cli, err := JoinMaster(param.Cfg, param.CommonArgs)
 		if err != nil {
 			logger.Logger(ctx).Fatalf("join master failed: %s", err.Error())
 		}
-		logger.Logger(ctx).Infof("join master success, clientID: [%s], clientInfo: [%s]", cli.GetId(), cli.String())
+		logger.Logger(ctx).Infof("join master success, clientID: [%s]", cli.GetId())
 		tmpCfg := appInstance.GetConfig()
 		tmpCfg.Client.ID = cli.GetId()
 		tmpCfg.Client.Secret = cli.GetSecret()

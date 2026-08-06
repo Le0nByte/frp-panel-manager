@@ -12,7 +12,7 @@ import (
 )
 
 func FRPAuth(ctx *app.Context, req *pb.FRPAuthRequest) (*pb.FRPAuthResponse, error) {
-	logger.Logger(ctx).Infof("frpc auth, req: [%+v]", req)
+	logger.Logger(ctx).Info(FRPAuthReqSummary(req.GetUser()))
 	var (
 		err error
 	)
@@ -43,4 +43,10 @@ func FRPAuth(ctx *app.Context, req *pb.FRPAuthRequest) (*pb.FRPAuthResponse, err
 		Status: &pb.Status{Code: pb.RespCode_RESP_CODE_SUCCESS, Message: "ok"},
 		Ok:     true,
 	}, nil
+}
+
+// FRPAuthReqSummary returns a safe log summary of a frpc-auth request:
+// only the user is included, never the auth token (spec §10.9).
+func FRPAuthReqSummary(user string) string {
+	return fmt.Sprintf("frpc auth, req: {user: %q}", user)
 }

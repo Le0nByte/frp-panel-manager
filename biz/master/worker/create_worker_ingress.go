@@ -19,12 +19,27 @@ func IngressName(worker *models.Worker, cli *models.ClientEntity) string {
 	return fmt.Sprintf("ingress-%s-%s", strings.Split(worker.ID, "-")[0], cli.OriginClientID)
 }
 
+// CreateWorkerIngress is the live /create_ingress route entry. It locks at
+// ITS OWN outermost entry because it calls proxy.GetClientWithMakeShadow,
+// which WRITES during resolution (MakeClientShadowed / ChildClientForServer
+// on a never-shadowed origin) — that write must run inside the (tenant,
+// origin) keyed lock (the SAME originlock.Shared instance SafeCreateProxy
+// holds), not after it. It then delegates to the lock-free
+// CreateProxyConfigWithTypedConfigLocked; the locking entry would deadlock
+// this goroutine on its own key (non-reentrant keyed mutex).
 func CreateWorkerIngress(ctx *app.Context, req *pb.CreateWorkerIngressRequest) (*pb.CreateWorkerIngressResponse, error) {
 
 	if err := validateCreateWorkerIngressRequest(req); err != nil {
 		logger.Logger(ctx).WithError(err).Errorf("invalid create worker ingress request, origin is: [%s]", req.String())
 		return nil, err
 	}
+
+	originID, unlock, err := proxy.LockLegacyOrigin(ctx, req.GetClientId())
+	if err != nil {
+		logger.Logger(ctx).WithError(err).Errorf("cannot resolve origin client, id: [%s]", req.GetClientId())
+		return nil, err
+	}
+	defer unlock()
 
 	var (
 		clientId = req.GetClientId()
@@ -33,7 +48,9 @@ func CreateWorkerIngress(ctx *app.Context, req *pb.CreateWorkerIngressRequest) (
 		userInfo = common.GetUserInfo(ctx)
 	)
 
-	clientEntity, err := proxy.GetClientWithMakeShadow(ctx, clientId, serverId)
+	// child→origin normalization: the shadow machinery is keyed by the
+	// ORIGIN id.
+	clientEntity, err := proxy.GetClientWithMakeShadow(ctx, originID, serverId)
 	if err != nil {
 		logger.Logger(ctx).WithError(err).Errorf("cannot get client, id: [%s]", clientId)
 		return nil, err
@@ -79,7 +96,7 @@ func CreateWorkerIngress(ctx *app.Context, req *pb.CreateWorkerIngressRequest) (
 		GroupKey: workerId,
 	}
 
-	if err := proxy.CreateProxyConfigWithTypedConfig(ctx, proxy.CreateProxyConfigWithTypedConfigParam{
+	if err := proxy.CreateProxyConfigWithTypedConfigLocked(ctx, proxy.CreateProxyConfigWithTypedConfigParam{
 		ClientID: clientId,
 		ServerID: serverId,
 		ProxyCfg: v1.TypedProxyConfig{

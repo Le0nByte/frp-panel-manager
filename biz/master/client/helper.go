@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -8,10 +9,12 @@ import (
 	"github.com/VaalaCat/frp-panel/models"
 	"github.com/VaalaCat/frp-panel/services/app"
 	"github.com/VaalaCat/frp-panel/services/dao"
+	"github.com/VaalaCat/frp-panel/services/rpcguard"
 	"github.com/VaalaCat/frp-panel/utils/logger"
 	"github.com/samber/lo"
 	"github.com/spf13/cast"
 	"github.com/tiendc/go-deepcopy"
+	"gorm.io/gorm"
 )
 
 type ValidateableClientRequest interface {
@@ -19,13 +22,43 @@ type ValidateableClientRequest interface {
 	GetClientId() string
 }
 
+// ValidateClientRequest validates a client ConnectSecret. When a Guard is
+// carried by ctx (I3-B), every attempt is admission-gated and audited:
+//
+//   - nil request / empty id / empty secret: a real failure — recorded in
+//     the guard's secret-failure accounting (node is the id if present)
+//     and rejected with the typed dao.ErrInvalidClientSecret;
+//   - the (peer,node) key lock is checked BEFORE any DAO access, so a
+//     locked key is rejected without touching the database;
+//   - DAO errors count as failures ONLY for the typed sentinel or
+//     gorm.ErrRecordNotFound; transient DB errors (SQLite busy/closed,
+//     timeouts, ...) never count and never lock;
+//   - a successful validation calls RecordSecretSuccess, clearing any
+//     earlier failure state.
+//
+// Without a guard the function keeps its legacy behavior but still
+// returns the typed sentinel for nil/empty inputs.
 func ValidateClientRequest(ctx *app.Context, req ValidateableClientRequest) (*models.ClientEntity, error) {
+	guard := rpcguard.FromContext(ctx)
+	peer := rpcguard.PeerFromContext(ctx)
+
 	if req == nil {
-		return nil, fmt.Errorf("invalid request")
+		if guard != nil {
+			guard.RecordSecretFailure(peer, "", rpcguard.LayerClient)
+		}
+		return nil, dao.ErrInvalidClientSecret
 	}
 
 	if req.GetClientId() == "" || req.GetClientSecret() == "" {
-		return nil, fmt.Errorf("invalid request")
+		if guard != nil {
+			guard.RecordSecretFailure(peer, req.GetClientId(), rpcguard.LayerClient)
+		}
+		return nil, dao.ErrInvalidClientSecret
+	}
+
+	if guard != nil && !guard.AllowSecretAttempt(peer, req.GetClientId()) {
+		guard.RecordSecretFailure(peer, req.GetClientId(), rpcguard.LayerClient)
+		return nil, dao.ErrInvalidClientSecret
 	}
 
 	var (
@@ -34,10 +67,25 @@ func ValidateClientRequest(ctx *app.Context, req ValidateableClientRequest) (*mo
 	)
 
 	if cli, err = dao.NewQuery(ctx).ValidateClientSecret(req.GetClientId(), req.GetClientSecret()); err != nil {
+		if guard != nil && isSecretFailure(err) {
+			guard.RecordSecretFailure(peer, req.GetClientId(), rpcguard.LayerClient)
+		}
 		return nil, err
 	}
 
+	if guard != nil {
+		guard.RecordSecretSuccess(peer, req.GetClientId())
+	}
+
 	return cli, nil
+}
+
+// isSecretFailure reports whether a DAO error represents a real
+// ConnectSecret validation failure (the typed sentinel or a missing row).
+// Anything else — transient DB errors in particular — never counts toward
+// the guard's failure accounting.
+func isSecretFailure(err error) bool {
+	return errors.Is(err, dao.ErrInvalidClientSecret) || errors.Is(err, gorm.ErrRecordNotFound)
 }
 
 func MakeClientShadowed(c *app.Context, serverID string, clientEntity *models.ClientEntity) (*models.ClientEntity, error) {

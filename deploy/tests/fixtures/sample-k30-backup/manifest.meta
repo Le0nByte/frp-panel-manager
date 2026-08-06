@@ -1,0 +1,3 @@
+frpc	/data/frp/frpc	755	0:0
+frpc.toml	/data/frp/frpc.toml	600	0:0
+frpc.sh	/data/adb/service.d/frpc.sh	755	0:0

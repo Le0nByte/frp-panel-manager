@@ -14,18 +14,14 @@ Master 推荐使用 docker 部署！不推荐直接安装到服务器中
 
 ### 服务器开放公网端口：
 
-- **WEBUI 端口**: 默认 `TCP 9000`
-- **RPC 端口**: 默认 `TCP 9001`
+- **WEBUI 端口**: 默认 `TCP 9100`（仅回环监听）
+- **RPC 端口**: 默认 `TCP 9101`
 - **frps 的API端口**：没有默认，请随意预留，例子使用 `TCP/UDP 7000`
 - **frps 对外开放的服务端口**：没有默认，请随意预留，例子使用 `TCP/UDP 26999-27050`
 
-如果使用反向代理，请忽略 WEBUI 和 RPC 端口，放行 80/443 即可
+API 9100 只绑定回环地址，不能直接暴露公网；公网管理访问由反向代理转发到 `127.0.0.1:9100`。
 
-WEBUI 端口也可以处理 h2c 格式的 RPC 连接
-
-RPC 端口也可以处理自签名 HTTPS 的 API 连接
-
-二者都可使用反向代理服务器连接并提供TLS
+Agent TLS gRPC 9101 必须保持公网开放，不能因为使用 API 反向代理而关闭或复用。生产环境不把 API、h2c 和 Agent gRPC 混用。
 
 如果你想要使用安全的方式（反向代理），请参考下图设置环境变量「`CLIENT_RPC_URL`和`CLIENT_API_URL`」。
 
@@ -56,6 +52,8 @@ RPC 端口也可以处理自签名 HTTPS 的 API 连接
 
 ### 方式一：Docker Compose 部署
 
+> `MASTER_API_HOST` 必须填写 Agent 实际连接使用的公网 IP 或 DNS；该值会进入 TLS 证书 SAN。Master API 仍只监听 `127.0.0.1:9100`，公网管理入口由 HTTPS 反向代理提供。
+
 服务器需要安装docker和docker compose
 
 首先创建一个`docker-compose.yaml`文件，写入以下内容
@@ -68,14 +66,14 @@ services:
     environment:
       APP_GLOBAL_SECRET: your_secret # 随便输入一些随机字符，不要泄露
       MASTER_RPC_HOST: 1.2.3.4 # 服务器的外部IP或域名
-      MASTER_RPC_PORT: 9001 # RPC 监听端口
+      MASTER_RPC_PORT: 9101 # 公网 Agent TLS gRPC 监听端口
       MASTER_API_HOST: 1.2.3.4 # 服务器的外部IP或域名
-      MASTER_API_PORT: 9000 # API/WebUI监听端口
+      MASTER_API_PORT: 9100 # loopback API/WebUI port; public HTTPS is provided by the reverse proxy
       # CLIENT_RPC_URL和CLIENT_API_URL请根据实际情况设置，设置为外部可以通过url访问到master的形式
-      # Client 连接 master RPC 的 URL，如果使用反向代理，请设置为通过反向代理访问的 URL（如wss://example.com:443）
-      CLIENT_RPC_URL: grpc://1.2.3.4:9001
+      # Client 连接 master RPC 的 URL，如果使用反向代理，请设置为通过反向代理访问的 URL（如grpc://PUBLIC_IP_OR_DNS:9101）
+      CLIENT_RPC_URL: grpc://1.2.3.4:9101
       # Client 连接 master API/WebUI 的 URL，如果使用反向代理，请设置为通过反向代理访问的 URL（如https://example.com:443）
-      CLIENT_API_URL: http://1.2.3.4:9000
+      CLIENT_API_URL: https://1.2.3.4:9443
     volumes:
       - ./data:/data # 数据存储位置
     restart: unless-stopped
@@ -88,12 +86,12 @@ services:
 
 ```bash
 # 推荐
-# MASTER_RPC_HOST等0.0.0.0要改成你服务器的外部IP
+# MASTER_RPC_HOST 保持 0.0.0.0 监听；MASTER_API_HOST 必须填写 Agent 实际连接的公网 IP 或 DNS
 # APP_GLOBAL_SECRET注意不要泄漏，客户端和服务端的是通过Master生成的
 # CLIENT_RPC_URL和CLIENT_API_URL请根据实际情况设置
 # 如果使用反向代理，请设置为通过反向代理访问的 URL，也就是外部如何访问master
-# 如 443端口代理example.com到9000端口
-# CLIENT_RPC_URL=wss://example.com:443
+# 如 443端口代理example.com到回环 9100端口
+# CLIENT_RPC_URL=grpc://PUBLIC_IP_OR_DNS:9101
 # CLIENT_API_URL=https://example.com:443
 docker run -d \
 	--network=host \
@@ -101,143 +99,26 @@ docker run -d \
 	-v /opt/frp-panel:/data \
 	-e APP_GLOBAL_SECRET=your_secret \
 	-e MASTER_RPC_HOST=0.0.0.0 \
-	-e CLIENT_RPC_URL=grpc://0.0.0.0:9001 \
-	-e CLIENT_API_URL=http://0.0.0.0:9000 \
+	-e MASTER_API_HOST=PUBLIC_IP_OR_DNS \
+	-e CLIENT_RPC_URL=grpc://PUBLIC_IP_OR_DNS:9101 \
+	-e CLIENT_API_URL=https://PUBLIC_IP_OR_DNS:9443 \
 	vaalacat/frp-panel
 ```
 
-如果你不想使用 host 网络模式，请参考使用下面的命令修改
+> 本 fork 不支持使用 Docker bridge 端口映射部署 Master：应用内 API 固定绑定容器回环地址，docker-proxy 无法转发到该地址。请使用上面的 `--network=host` 方式。
 
-```bash
-# 或者
-# 运行时记得删除命令中的中文
-# CLIENT_RPC_URL和CLIENT_API_URL请根据实际情况设置，设置为外部可以通过url访问到master的形式
-# 如果使用反向代理，请设置为通过反向代理访问的 URL，也就是外部如何访问master
-docker run -d -p 9000:9000 \ # API控制台端口
-	-p 9001:9001 \ # rpc端口
-	-p 7000:7000 \ # frps 端口
-	-p 27000-27050:27000-27050 \ # 给frps预留的端口
-	--restart=unless-stopped \
-	-v /opt/frp-panel:/data \ # 数据存储位置
-	-e APP_GLOBAL_SECRET=your_secret \ # Master的secret注意不要泄漏，客户端和服务端的是通过Master生成的
-	-e MASTER_RPC_HOST=0.0.0.0 \ # 这里要改成你服务器的外部IP
-	-e CLIENT_RPC_URL=grpc://0.0.0.0:9001 \
-	-e CLIENT_API_URL=http://0.0.0.0:9000 \
-	vaalacat/frp-panel
-```
+### 方式三：宿主机 HTTPS 反向代理（推荐）
 
-### 方式三：使用 docker 反向代理 TLS 加密部署
+Master API 固定监听 `127.0.0.1:9100`。反向代理必须运行在宿主机网络命名空间中（宿主机服务，或 Linux 上显式使用 `network_mode: host`），不得使用 bridge 网络中的容器通过容器 IP 访问 9100。
 
-这里我们以 [Traefik](https://traefik.io/traefik/) 为例
+部署要求：
 
-> `Traefik` 可以实时自动识别 Docker 容器的端口并热更新配置，非常适合 Docker 服务的反向代理
+1. Master 使用 `network_mode: host`，并设置 `MASTER_API_HOST=PUBLIC_IP_OR_DNS`。
+2. Nginx、Caddy 或 Traefik 在宿主机网络中监听公网 HTTPS `9443`（或 `443`），上游为 `http://127.0.0.1:9100`。
+3. Agent TLS gRPC `9101` 保持公网开放，不通过 API 反向代理复用。
+4. Agent 使用 `CLIENT_API_URL=https://PUBLIC_IP_OR_DNS:9443` 与 `CLIENT_RPC_URL=grpc://PUBLIC_IP_OR_DNS:9101`。
 
-首先创建一个名为`traefik`的反向代理专用网络
-```bash
-docker network create traefik
-```
-然后启动反向代理和 Master 服务
-- `docker-compose.yaml`
-
-```yaml
-version: '3'
-
-services:
-  traefk-reverse-proxy:
-    image: traefik:v3.3
-    restart: unless-stopped
-    networks:
-      - traefik
-    command:
-      - --entryPoints.web.address=:80
-      - --entryPoints.websecure.address=:443
-      - --entryPoints.websecure.http2.maxConcurrentStreams=250
-      - --providers.docker
-      - --providers.docker.network=traefik
-      - --api.insecure # 在生产环境请删除这一行
-    # 这下面使用 80 端口做ACME HTTP DNS证书验证
-      - --certificatesresolvers.le.acme.email=me@example.com
-      - --certificatesresolvers.le.acme.storage=/etc/traefik/conf/acme.json
-      - --certificatesresolvers.le.acme.httpchallenge=true
-    ports:
-      # 反向代理的 HTTP 端口
-      - "80:80"
-      # 反向代理的 HTTPS 端口
-      - "443:443"
-      # Traefik 的 Web UI (--api.insecure=true 会使用这个端口)
-      # 生产环境请删除这个端口
-      - "8080:8080"
-    volumes:
-      # 挂载 docker.sock，这样 Traefik 可以自动识别主机上所有 docker 容器反向代理配置
-      - /var/run/docker.sock:/var/run/docker.sock
-      # 保存 Traefik 申请的证书
-      - ./conf:/etc/traefik/conf
-
-  frpp-master:
-    image: vaalacat/frp-panel:latest # 这里换成你想使用的版本
-    environment:
-      APP_GLOBAL_SECRET: your_secret
-	# 因为 api 和 rpc 使用的协议不一样
-	# 我们需要对 api 和 rpc 使用两个域名
-	# 以便反向代理正确识别需要转发的协议
-      MASTER_RPC_HOST: frpp.example.com
-      MASTER_API_PORT: 443
-      MASTER_API_HOST: frpp.example.com
-      MASTER_API_SCHEME: https
-      CLIENT_RPC_URL: wss://frpp.example.com:443
-      CLIENT_API_URL: https://frpp.example.com:443
-    networks:
-      - traefik
-    volumes:
-      - ./data:/data
-    ports:
-	  # 无需为 master 预留 api 和 rpc 端口
-	  # 预留frps api端口
-      - 7000:7000
-      - 7000:7000/udp
-	  # 预留frps的业务端口
-	  # 26999 端口是留给 frps 的http代理端口
-      - 26999-27050:26999-27050
-      - 26999-27050:26999-27050/udp
-    restart: unless-stopped
-    command: master
-    labels:
-	  # API/WSS
-      - traefik.http.routers.frp-panel-api.rule=Host(`frpp.example.com`)
-      - traefik.http.routers.frp-panel-api.tls=true
-      - traefik.http.routers.frp-panel-api.tls.certresolver=le
-      - traefik.http.routers.frp-panel-api.entrypoints=websecure
-      - traefik.http.routers.frp-panel-api.service=frp-panel-api
-      - traefik.http.services.frp-panel-api.loadbalancer.server.port=9000
-      - traefik.http.services.frp-panel-api.loadbalancer.server.scheme=http
-      # 下方如果你用不到 frps 的http代理，可以不要
-      # 需要配置域名 *.frpp.example.com 泛解析到你服务器的公网IP
-      # 这样可以实现使用 .frpp.example.com 结束的域名，在 443 端口，转发多个服务到多个 frpc
-      - traefik.http.routers.frp-panel-tunnel.rule=HostRegexp(`.*.frpp.example.com`)
-      - traefik.http.routers.frp-panel-tunnel.tls.domains[0].sans=*.frpp.example.com
-      - traefik.http.routers.frp-panel-tunnel.tls=true
-      - traefik.http.routers.frp-panel-tunnel.tls.certresolver=le
-      - traefik.http.routers.frp-panel-tunnel.entrypoints=websecure
-      - traefik.http.routers.frp-panel-tunnel.service=frp-panel-tunnel
-      - traefik.http.services.frp-panel-tunnel.loadbalancer.server.port=26999
-      - traefik.http.services.frp-panel-tunnel.loadbalancer.server.scheme=http
-networks:
-  traefik:
-    external: true
-    name: traefik
-```
-
-上方的 `docker-compose.yaml` 部署完成后，可以访问 `服务器公网IP/域名:8080` 查看反向代理状态
-
-随后配置 default server 即可实现 frp 子域名转发：
-
-| 配置项 | 值 |
-|----|-----|
-|	FRPs 监听端口	|	7000	|
-|	FRPs 监听地址	|	0.0.0.0	|
-|	代理监听地址	|	0.0.0.0	|
-| 	HTTP 监听端口	|	26999	|
-|	域名后缀		|	frpp.example.com	|
+生产配置、证书、验证和回滚步骤以 [`ops-runbook.md`](ops-runbook.md) 为准。
 
 ## 在 Windows 上部署
 
@@ -248,8 +129,9 @@ networks:
 ```
 APP_GLOBAL_SECRET=your_secret
 DB_DSN=data.db
-CLIENT_RPC_URL=grpc://IP:9001
-CLIENT_API_URL=http://IP:9000
+MASTER_API_HOST=IP
+CLIENT_RPC_URL=grpc://IP:9101
+CLIENT_API_URL=https://IP:9443
 ```
 
 - master: `frp-panel-amd64.exe master`

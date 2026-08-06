@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/VaalaCat/frp-panel/common"
 	"github.com/VaalaCat/frp-panel/pb"
@@ -12,7 +13,7 @@ import (
 )
 
 func RemoveFrpsHandler(c *app.Context, req *pb.RemoveFRPSRequest) (*pb.RemoveFRPSResponse, error) {
-	logger.Logger(c).Infof("remove frps, req: [%+v]", req)
+	logger.Logger(c).Info(RemoveFRPSReqSummary(req.GetServerId()))
 
 	var (
 		serverID = req.GetServerId()
@@ -44,4 +45,11 @@ func RemoveFrpsHandler(c *app.Context, req *pb.RemoveFRPSRequest) (*pb.RemoveFRP
 	return &pb.RemoveFRPSResponse{
 		Status: &pb.Status{Code: pb.RespCode_RESP_CODE_SUCCESS, Message: "ok"},
 	}, nil
+}
+
+// RemoveFRPSReqSummary returns a safe log summary of a remove-request:
+// only the server ID is included (spec §10.9). The raw request struct is
+// never dumped, so nothing beyond the ID can leak.
+func RemoveFRPSReqSummary(serverID string) string {
+	return fmt.Sprintf("remove frps, req: {server_id: %q}", serverID)
 }

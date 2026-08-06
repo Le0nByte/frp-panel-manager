@@ -438,14 +438,19 @@ func (x *DeleteClientResponse) GetStatus() *Status {
 }
 
 type UpdateFRPCRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientId      *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	ServerId      *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
-	Config        []byte                 `protobuf:"bytes,3,opt,name=config,proto3,oneof" json:"config,omitempty"`
-	Comment       *string                `protobuf:"bytes,4,opt,name=comment,proto3,oneof" json:"comment,omitempty"`
-	FrpsUrl       *string                `protobuf:"bytes,5,opt,name=frps_url,json=frpsUrl,proto3,oneof" json:"frps_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ClientId *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
+	ServerId *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
+	Config   []byte                 `protobuf:"bytes,3,opt,name=config,proto3,oneof" json:"config,omitempty"`
+	Comment  *string                `protobuf:"bytes,4,opt,name=comment,proto3,oneof" json:"comment,omitempty"`
+	FrpsUrl  *string                `protobuf:"bytes,5,opt,name=frps_url,json=frpsUrl,proto3,oneof" json:"frps_url,omitempty"`
+	// Directed handler switch (safe-create atomic shadow): when set and
+	// different from client_id, the agent stops/deletes the live handler for
+	// (replace_client_id, server_id) BEFORE adding/updating the client_id
+	// handler — never StopAll. Empty = no replacement.
+	ReplaceClientId *string `protobuf:"bytes,6,opt,name=replace_client_id,json=replaceClientId,proto3,oneof" json:"replace_client_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateFRPCRequest) Reset() {
@@ -509,6 +514,13 @@ func (x *UpdateFRPCRequest) GetComment() string {
 func (x *UpdateFRPCRequest) GetFrpsUrl() string {
 	if x != nil && x.FrpsUrl != nil {
 		return *x.FrpsUrl
+	}
+	return ""
+}
+
+func (x *UpdateFRPCRequest) GetReplaceClientId() string {
+	if x != nil && x.ReplaceClientId != nil {
+		return *x.ReplaceClientId
 	}
 	return ""
 }
@@ -1054,13 +1066,15 @@ func (x *ListProxyConfigsResponse) GetProxyConfigs() []*ProxyConfig {
 }
 
 type CreateProxyConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientId      *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	ServerId      *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
-	Config        []byte                 `protobuf:"bytes,3,opt,name=config,proto3,oneof" json:"config,omitempty"`
-	Overwrite     *bool                  `protobuf:"varint,4,opt,name=overwrite,proto3,oneof" json:"overwrite,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ClientId       *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
+	ServerId       *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
+	Config         []byte                 `protobuf:"bytes,3,opt,name=config,proto3,oneof" json:"config,omitempty"`
+	Overwrite      *bool                  `protobuf:"varint,4,opt,name=overwrite,proto3,oneof" json:"overwrite,omitempty"`
+	IdempotencyKey *string                `protobuf:"bytes,12,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	PreflightToken *string                `protobuf:"bytes,13,opt,name=preflight_token,json=preflightToken,proto3,oneof" json:"preflight_token,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateProxyConfigRequest) Reset() {
@@ -1121,9 +1135,27 @@ func (x *CreateProxyConfigRequest) GetOverwrite() bool {
 	return false
 }
 
+func (x *CreateProxyConfigRequest) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *CreateProxyConfigRequest) GetPreflightToken() string {
+	if x != nil && x.PreflightToken != nil {
+		return *x.PreflightToken
+	}
+	return ""
+}
+
 type CreateProxyConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Status *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	// Structured error code (spec §7.3): a stable machine-checkable code like
+	// PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+	// human-readable and never embeds the code as a prefix.
+	ErrorCode     *string `protobuf:"bytes,2,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1165,13 +1197,24 @@ func (x *CreateProxyConfigResponse) GetStatus() *Status {
 	return nil
 }
 
+func (x *CreateProxyConfigResponse) GetErrorCode() string {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return ""
+}
+
 type DeleteProxyConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientId      *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	ServerId      *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
-	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ClientId *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
+	ServerId *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
+	Name     *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Idempotency key (spec §7.3): a stable user-supplied key so retried
+	// requests converge on the same transaction. Mirrors
+	// CreateProxyConfigRequest.idempotency_key.
+	IdempotencyKey *string `protobuf:"bytes,12,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DeleteProxyConfigRequest) Reset() {
@@ -1225,9 +1268,21 @@ func (x *DeleteProxyConfigRequest) GetName() string {
 	return ""
 }
 
+func (x *DeleteProxyConfigRequest) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
+}
+
 type DeleteProxyConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Status *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	// Structured error code (spec §7.3): a stable machine-checkable code like
+	// PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+	// human-readable and never embeds the code as a prefix. Mirrors
+	// CreateProxyConfigResponse.error_code.
+	ErrorCode     *string `protobuf:"bytes,2,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1269,14 +1324,23 @@ func (x *DeleteProxyConfigResponse) GetStatus() *Status {
 	return nil
 }
 
+func (x *DeleteProxyConfigResponse) GetErrorCode() string {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return ""
+}
+
 type UpdateProxyConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientId      *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	ServerId      *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
-	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Config        []byte                 `protobuf:"bytes,4,opt,name=config,proto3,oneof" json:"config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ClientId       *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
+	ServerId       *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
+	Name           *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Config         []byte                 `protobuf:"bytes,4,opt,name=config,proto3,oneof" json:"config,omitempty"`
+	IdempotencyKey *string                `protobuf:"bytes,12,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	PreflightToken *string                `protobuf:"bytes,13,opt,name=preflight_token,json=preflightToken,proto3,oneof" json:"preflight_token,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateProxyConfigRequest) Reset() {
@@ -1337,9 +1401,28 @@ func (x *UpdateProxyConfigRequest) GetConfig() []byte {
 	return nil
 }
 
+func (x *UpdateProxyConfigRequest) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *UpdateProxyConfigRequest) GetPreflightToken() string {
+	if x != nil && x.PreflightToken != nil {
+		return *x.PreflightToken
+	}
+	return ""
+}
+
 type UpdateProxyConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Status *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	// Structured error code (spec §7.3): a stable machine-checkable code like
+	// PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+	// human-readable and never embeds the code as a prefix. Mirrors
+	// CreateProxyConfigResponse.error_code.
+	ErrorCode     *string `protobuf:"bytes,2,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1379,6 +1462,13 @@ func (x *UpdateProxyConfigResponse) GetStatus() *Status {
 		return x.Status
 	}
 	return nil
+}
+
+func (x *UpdateProxyConfigResponse) GetErrorCode() string {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return ""
 }
 
 type GetProxyConfigRequest struct {
@@ -1502,12 +1592,14 @@ func (x *GetProxyConfigResponse) GetWorkingStatus() *ProxyWorkingStatus {
 }
 
 type StopProxyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientId      *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	ServerId      *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
-	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ClientId *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
+	ServerId *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
+	Name     *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Idempotency key (spec §7.3): mirrors CreateProxyConfigRequest.idempotency_key.
+	IdempotencyKey *string `protobuf:"bytes,12,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StopProxyRequest) Reset() {
@@ -1561,9 +1653,18 @@ func (x *StopProxyRequest) GetName() string {
 	return ""
 }
 
+func (x *StopProxyRequest) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
+}
+
 type StopProxyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Status *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	// Structured error code (spec §7.3): mirrors CreateProxyConfigResponse.error_code.
+	ErrorCode     *string `protobuf:"bytes,2,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1605,13 +1706,22 @@ func (x *StopProxyResponse) GetStatus() *Status {
 	return nil
 }
 
+func (x *StopProxyResponse) GetErrorCode() string {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return ""
+}
+
 type StartProxyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientId      *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	ServerId      *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
-	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ClientId *string                `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
+	ServerId *string                `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3,oneof" json:"server_id,omitempty"`
+	Name     *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Idempotency key (spec §7.3): mirrors CreateProxyConfigRequest.idempotency_key.
+	IdempotencyKey *string `protobuf:"bytes,12,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StartProxyRequest) Reset() {
@@ -1665,9 +1775,18 @@ func (x *StartProxyRequest) GetName() string {
 	return ""
 }
 
+func (x *StartProxyRequest) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
+}
+
 type StartProxyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Status *Status                `protobuf:"bytes,1,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	// Structured error code (spec §7.3): mirrors CreateProxyConfigResponse.error_code.
+	ErrorCode     *string `protobuf:"bytes,2,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1707,6 +1826,13 @@ func (x *StartProxyResponse) GetStatus() *Status {
 		return x.Status
 	}
 	return nil
+}
+
+func (x *StartProxyResponse) GetErrorCode() string {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return ""
 }
 
 type CreateWorkerRequest struct {
@@ -3154,13 +3280,14 @@ const file_api_client_proto_rawDesc = "" +
 	"_client_id\"N\n" +
 	"\x14DeleteClientResponse\x12+\n" +
 	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01B\t\n" +
-	"\a_status\"\xf3\x01\n" +
+	"\a_status\"\xba\x02\n" +
 	"\x11UpdateFRPCRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12 \n" +
 	"\tserver_id\x18\x02 \x01(\tH\x01R\bserverId\x88\x01\x01\x12\x1b\n" +
 	"\x06config\x18\x03 \x01(\fH\x02R\x06config\x88\x01\x01\x12\x1d\n" +
 	"\acomment\x18\x04 \x01(\tH\x03R\acomment\x88\x01\x01\x12\x1e\n" +
-	"\bfrps_url\x18\x05 \x01(\tH\x04R\afrpsUrl\x88\x01\x01B\f\n" +
+	"\bfrps_url\x18\x05 \x01(\tH\x04R\afrpsUrl\x88\x01\x01\x12/\n" +
+	"\x11replace_client_id\x18\x06 \x01(\tH\x05R\x0freplaceClientId\x88\x01\x01B\f\n" +
 	"\n" +
 	"_client_idB\f\n" +
 	"\n" +
@@ -3168,7 +3295,8 @@ const file_api_client_proto_rawDesc = "" +
 	"\a_configB\n" +
 	"\n" +
 	"\b_commentB\v\n" +
-	"\t_frps_url\"L\n" +
+	"\t_frps_urlB\x14\n" +
+	"\x12_replace_client_id\"L\n" +
 	"\x12UpdateFRPCResponse\x12+\n" +
 	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01B\t\n" +
 	"\a_status\"C\n" +
@@ -3222,48 +3350,67 @@ const file_api_client_proto_rawDesc = "" +
 	"\x05total\x18\x02 \x01(\x05H\x01R\x05total\x88\x01\x01\x128\n" +
 	"\rproxy_configs\x18\x03 \x03(\v2\x13.common.ProxyConfigR\fproxyConfigsB\t\n" +
 	"\a_statusB\b\n" +
-	"\x06_total\"\xd3\x01\n" +
+	"\x06_total\"\xd7\x02\n" +
 	"\x18CreateProxyConfigRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12 \n" +
 	"\tserver_id\x18\x02 \x01(\tH\x01R\bserverId\x88\x01\x01\x12\x1b\n" +
 	"\x06config\x18\x03 \x01(\fH\x02R\x06config\x88\x01\x01\x12!\n" +
-	"\toverwrite\x18\x04 \x01(\bH\x03R\toverwrite\x88\x01\x01B\f\n" +
+	"\toverwrite\x18\x04 \x01(\bH\x03R\toverwrite\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\f \x01(\tH\x04R\x0eidempotencyKey\x88\x01\x01\x12,\n" +
+	"\x0fpreflight_token\x18\r \x01(\tH\x05R\x0epreflightToken\x88\x01\x01B\f\n" +
 	"\n" +
 	"_client_idB\f\n" +
 	"\n" +
 	"_server_idB\t\n" +
 	"\a_configB\f\n" +
 	"\n" +
-	"_overwrite\"S\n" +
+	"_overwriteB\x12\n" +
+	"\x10_idempotency_keyB\x12\n" +
+	"\x10_preflight_token\"\x86\x01\n" +
 	"\x19CreateProxyConfigResponse\x12+\n" +
-	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01B\t\n" +
-	"\a_status\"\x9c\x01\n" +
+	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\x02 \x01(\tH\x01R\terrorCode\x88\x01\x01B\t\n" +
+	"\a_statusB\r\n" +
+	"\v_error_code\"\xde\x01\n" +
 	"\x18DeleteProxyConfigRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12 \n" +
 	"\tserver_id\x18\x02 \x01(\tH\x01R\bserverId\x88\x01\x01\x12\x17\n" +
-	"\x04name\x18\x03 \x01(\tH\x02R\x04name\x88\x01\x01B\f\n" +
+	"\x04name\x18\x03 \x01(\tH\x02R\x04name\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\f \x01(\tH\x03R\x0eidempotencyKey\x88\x01\x01B\f\n" +
 	"\n" +
 	"_client_idB\f\n" +
 	"\n" +
 	"_server_idB\a\n" +
-	"\x05_name\"S\n" +
+	"\x05_nameB\x12\n" +
+	"\x10_idempotency_key\"\x86\x01\n" +
 	"\x19DeleteProxyConfigResponse\x12+\n" +
-	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01B\t\n" +
-	"\a_status\"\xc4\x01\n" +
+	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\x02 \x01(\tH\x01R\terrorCode\x88\x01\x01B\t\n" +
+	"\a_statusB\r\n" +
+	"\v_error_code\"\xc8\x02\n" +
 	"\x18UpdateProxyConfigRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12 \n" +
 	"\tserver_id\x18\x02 \x01(\tH\x01R\bserverId\x88\x01\x01\x12\x17\n" +
 	"\x04name\x18\x03 \x01(\tH\x02R\x04name\x88\x01\x01\x12\x1b\n" +
-	"\x06config\x18\x04 \x01(\fH\x03R\x06config\x88\x01\x01B\f\n" +
+	"\x06config\x18\x04 \x01(\fH\x03R\x06config\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\f \x01(\tH\x04R\x0eidempotencyKey\x88\x01\x01\x12,\n" +
+	"\x0fpreflight_token\x18\r \x01(\tH\x05R\x0epreflightToken\x88\x01\x01B\f\n" +
 	"\n" +
 	"_client_idB\f\n" +
 	"\n" +
 	"_server_idB\a\n" +
 	"\x05_nameB\t\n" +
-	"\a_config\"S\n" +
+	"\a_configB\x12\n" +
+	"\x10_idempotency_keyB\x12\n" +
+	"\x10_preflight_token\"\x86\x01\n" +
 	"\x19UpdateProxyConfigResponse\x12+\n" +
-	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01B\t\n" +
-	"\a_status\"\x99\x01\n" +
+	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\x02 \x01(\tH\x01R\terrorCode\x88\x01\x01B\t\n" +
+	"\a_statusB\r\n" +
+	"\v_error_code\"\x99\x01\n" +
 	"\x15GetProxyConfigRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12 \n" +
 	"\tserver_id\x18\x02 \x01(\tH\x01R\bserverId\x88\x01\x01\x12\x17\n" +
@@ -3279,31 +3426,41 @@ const file_api_client_proto_rawDesc = "" +
 	"\x0eworking_status\x18\x03 \x01(\v2\x1a.common.ProxyWorkingStatusH\x02R\rworkingStatus\x88\x01\x01B\t\n" +
 	"\a_statusB\x0f\n" +
 	"\r_proxy_configB\x11\n" +
-	"\x0f_working_status\"\x94\x01\n" +
+	"\x0f_working_status\"\xd6\x01\n" +
 	"\x10StopProxyRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12 \n" +
 	"\tserver_id\x18\x02 \x01(\tH\x01R\bserverId\x88\x01\x01\x12\x17\n" +
-	"\x04name\x18\x03 \x01(\tH\x02R\x04name\x88\x01\x01B\f\n" +
+	"\x04name\x18\x03 \x01(\tH\x02R\x04name\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\f \x01(\tH\x03R\x0eidempotencyKey\x88\x01\x01B\f\n" +
 	"\n" +
 	"_client_idB\f\n" +
 	"\n" +
 	"_server_idB\a\n" +
-	"\x05_name\"K\n" +
+	"\x05_nameB\x12\n" +
+	"\x10_idempotency_key\"~\n" +
 	"\x11StopProxyResponse\x12+\n" +
-	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01B\t\n" +
-	"\a_status\"\x95\x01\n" +
+	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\x02 \x01(\tH\x01R\terrorCode\x88\x01\x01B\t\n" +
+	"\a_statusB\r\n" +
+	"\v_error_code\"\xd7\x01\n" +
 	"\x11StartProxyRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12 \n" +
 	"\tserver_id\x18\x02 \x01(\tH\x01R\bserverId\x88\x01\x01\x12\x17\n" +
-	"\x04name\x18\x03 \x01(\tH\x02R\x04name\x88\x01\x01B\f\n" +
+	"\x04name\x18\x03 \x01(\tH\x02R\x04name\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\f \x01(\tH\x03R\x0eidempotencyKey\x88\x01\x01B\f\n" +
 	"\n" +
 	"_client_idB\f\n" +
 	"\n" +
 	"_server_idB\a\n" +
-	"\x05_name\"L\n" +
+	"\x05_nameB\x12\n" +
+	"\x10_idempotency_key\"\x7f\n" +
 	"\x12StartProxyResponse\x12+\n" +
-	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01B\t\n" +
-	"\a_status\"}\n" +
+	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\x02 \x01(\tH\x01R\terrorCode\x88\x01\x01B\t\n" +
+	"\a_statusB\r\n" +
+	"\v_error_code\"}\n" +
 	"\x13CreateWorkerRequest\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tH\x00R\bclientId\x88\x01\x01\x12+\n" +
 	"\x06worker\x18\x02 \x01(\v2\x0e.common.WorkerH\x01R\x06worker\x88\x01\x01B\f\n" +

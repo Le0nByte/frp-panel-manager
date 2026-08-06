@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package types_port;
+option go_package = "../pb";
+
+// PortState classifies a single port observation (spec §5.1).
+enum PortState {
+  STATE_UNSPECIFIED = 0;
+  STATE_AVAILABLE = 1;
+  STATE_LISTENING = 2;
+  STATE_ACTIVE = 3;
+  STATE_CONFLICT = 4;
+  STATE_UNKNOWN = 5;
+}
+
+// PortObservation is one verifiable piece of evidence for a port, bound to a
+// node, protocol and address (spec §5.2). It never carries shell text.
+message PortObservation {
+  string node_id = 1;
+  string protocol = 2;      // tcp / udp
+  string ip_family = 3;     // v4 / v6
+  string local_address = 4;
+  uint32 local_port = 5;
+  PortState state = 6;
+  int32 pid = 7;
+  string process_name = 8;
+  string executable = 9;
+  string service_name = 10;
+  string docker_container_id = 11;
+  string docker_container_name = 12;
+  string frp_proxy_name = 13;
+  int32 active_connections = 14;
+  int64 observed_at = 15;   // unix seconds
+  string source = 16;       // /proc, gopsutil, docker, frp, bind-probe
+}

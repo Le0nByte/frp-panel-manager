@@ -1,0 +1,17 @@
+# frpc.toml fixture (offline test only)
+serverAddr = "1.2.3.4"
+serverPort = 7002
+
+[[proxies]]
+name = "ssh"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 24
+remotePort = 24
+
+[[proxies]]
+name = "shadow-http"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 8000
+remotePort = 8000

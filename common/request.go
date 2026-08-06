@@ -35,7 +35,10 @@ type ReqType interface {
 		pb.CreateEndpointRequest | pb.DeleteEndpointRequest | pb.UpdateEndpointRequest | pb.GetEndpointRequest | pb.ListEndpointsRequest |
 		pb.CreateWireGuardRequest | pb.DeleteWireGuardRequest | pb.UpdateWireGuardRequest | pb.GetWireGuardRequest | pb.ListWireGuardsRequest |
 		pb.CreateWireGuardLinkRequest | pb.DeleteWireGuardLinkRequest | pb.UpdateWireGuardLinkRequest | pb.GetWireGuardLinkRequest | pb.ListWireGuardLinksRequest |
-		pb.GetWireGuardRuntimeInfoRequest | pb.GetNetworkTopologyRequest
+		pb.GetWireGuardRuntimeInfoRequest | pb.GetNetworkTopologyRequest |
+		// port manager api
+		pb.ListPortsRequest | pb.PreflightRequest | pb.InspectPortsRequest | pb.ValidatePortRequest |
+		pb.ListAuditRequest | pb.GetAuditRequest | pb.RollbackRequest
 }
 
 func GetProtoRequest[T ReqType](c *gin.Context) (r *T, err error) {

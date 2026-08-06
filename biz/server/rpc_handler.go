@@ -33,6 +33,10 @@ func HandleServerMessage(appInstance app.Application, req *pb.ServerMessage) *pb
 		return app.WrapperServerMsg(appInstance, req, StopSteamLogHandler)
 	case pb.Event_EVENT_START_PTY_CONNECT:
 		return app.WrapperServerMsg(appInstance, req, StartPTYConnect)
+	case pb.Event_EVENT_INSPECT_PORTS:
+		return app.WrapperServerMsg(appInstance, req, InspectPortsHandler)
+	case pb.Event_EVENT_VALIDATE_PORT:
+		return app.WrapperServerMsg(appInstance, req, ValidatePortHandler)
 	case pb.Event_EVENT_PING:
 		rawData, _ := proto.Marshal(conf.GetVersion().ToProto())
 		return &pb.ClientMessage{

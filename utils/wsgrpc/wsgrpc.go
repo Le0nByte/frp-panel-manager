@@ -250,7 +250,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 
-	"vaalacat/frp-panel/utils/wsgrpc"
+	"github.com/VaalaCat/frp-panel/utils/wsorigin"
 	"github.com/gorilla/websocket"
 )
 
@@ -273,7 +273,7 @@ func main() {
 
 	// 创建一个简单的 upgrader 实例；可根据需要自定义 CheckOrigin 等选项
 	upgrader := &websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
+		CheckOrigin: wsorigin.SameOriginAllowEmpty(),
 	}
 
 	// 注册 WebSocket 处理 handler，路径可自定义，例如 /ws

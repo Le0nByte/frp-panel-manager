@@ -469,13 +469,7 @@ export const ClientActions: React.FC<ClientItemProps> = ({ client, table }) => {
             {t('client.actions_menu.copy_install_command')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => {
-              router.push({ pathname: '/clientedit', query: { clientID: client.id } })
-            }}
-          >
-            {t('client.actions_menu.edit_config')}
-          </DropdownMenuItem>
+
           <DropdownMenuItem
             onClick={() => {
               try {

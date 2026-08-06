@@ -25,18 +25,13 @@
 | bool   | `APP_COOKIE_SECURE`                | `false`            | Cookie 是否安全                                                   |
 | bool   | `APP_COOKIE_HTTP_ONLY`             | `true`             | Cookie 是否仅限 HTTP                                             |
 | bool   | `APP_ENABLE_REGISTER`              | `false`            | 是否启用注册，仅允许第一个管理员注册                               |
-| int    | `MASTER_API_PORT`                  | `9000`             | 主节点 API 端口                                                  |
+| int    | `MASTER_API_PORT`                  | `9100`            | 主节点 API 端口（仅回环监听，公网访问由反向代理提供）             |
 | string | `MASTER_API_HOST`                  | -                  | 主节点域名，可以在反向代理和CDN后                                 |
 | string | `MASTER_API_SCHEME`                | `http`             | 主节点 API 协议（注意，这里不影响主机行为，设置为https只是为了方便复制客户端启动命令，HTTPS需要自行反向代理）|
 | int    | `MASTER_CACHE_SIZE`                | `10`               | 缓存大小（MB）                                                   |
 | string | `MASTER_RPC_HOST`                  | `127.0.0.1`        | Master节点公共 IP 或域名                                          |
-| int    | `MASTER_RPC_PORT`                  | `9001`             | Master节点 RPC 端口                                            |
-| bool   | `MASTER_COMPATIBLE_MODE`           | `false`            | 兼容模式，用于官方 frp 客户端                                     |
+| int    | `MASTER_RPC_PORT`                  | `9101`             | Master节点公网 TLS gRPC 端口                                   |
 | string | `MASTER_INTERNAL_FRP_SERVER_HOST`  | -                  | Master内置 frps 服务器主机，用于客户端连接                                |
-| int    | `MASTER_INTERNAL_FRP_SERVER_PORT`  | `9002`             | Master内置 frps 服务器端口，用于客户端连接                                |
-| string | `MASTER_INTERNAL_FRP_AUTH_SERVER_HOST` | `127.0.0.1`    | Master内置 frps 认证服务器主机                                          |
-| int    | `MASTER_INTERNAL_FRP_AUTH_SERVER_PORT` | `8999`          | Master内置 frps 认证服务器端口                                          |
-| string | `MASTER_INTERNAL_FRP_AUTH_SERVER_PATH` | `/auth`         | Master内置 frps 认证服务器路径                                          |
 | int    | `SERVER_API_PORT`                  | `8999`             | 服务器 API 端口                                                  |
 | string | `DB_TYPE`                          | `sqlite3`         | 数据库类型，如 mysql postgres 或 sqlite3 等                                 |
 | string | `DB_DSN`                           | `data.db`         | 数据库 DSN，默认使用sqlite3，数据默认存储在可执行文件同目录下，对于 sqlite 是路径，其他数据库为 DSN，参见 [MySQL DSN](https://github.com/go-sql-driver/mysql#dsn-data-source-name) |

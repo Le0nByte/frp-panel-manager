@@ -33,6 +33,25 @@ message CommonResponse {
   optional string data = 2;
 }
 
+// AuditEvent is a redacted audit record returned to the UI (spec §7.1).
+message AuditEvent {
+  optional string transaction_id = 1;
+  optional string event_type = 2;
+  optional string summary = 3;
+  optional string node_id = 4;
+  optional bool success = 5;
+  optional int64 created_at = 6;
+  optional string error_code = 7;
+  optional string evidence_ref = 8;
+  // operation/status/proxy_id are the ChangeTransaction details surfaced by
+  // the audit detail view (spec §7.1 GET /audit): the owning transaction's
+  // operation (create/update/delete/start/stop/rollback), its lifecycle
+  // status, and the affected proxy_config row id when one exists.
+  optional string operation = 9;
+  optional string status = 10;
+  optional int64 proxy_id = 11;
+}
+
 message Client {
   optional string id = 1;
   optional string secret = 2;

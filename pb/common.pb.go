@@ -279,6 +279,135 @@ func (x *CommonResponse) GetData() string {
 	return ""
 }
 
+// AuditEvent is a redacted audit record returned to the UI (spec §7.1).
+type AuditEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TransactionId *string                `protobuf:"bytes,1,opt,name=transaction_id,json=transactionId,proto3,oneof" json:"transaction_id,omitempty"`
+	EventType     *string                `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3,oneof" json:"event_type,omitempty"`
+	Summary       *string                `protobuf:"bytes,3,opt,name=summary,proto3,oneof" json:"summary,omitempty"`
+	NodeId        *string                `protobuf:"bytes,4,opt,name=node_id,json=nodeId,proto3,oneof" json:"node_id,omitempty"`
+	Success       *bool                  `protobuf:"varint,5,opt,name=success,proto3,oneof" json:"success,omitempty"`
+	CreatedAt     *int64                 `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3,oneof" json:"created_at,omitempty"`
+	ErrorCode     *string                `protobuf:"bytes,7,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
+	EvidenceRef   *string                `protobuf:"bytes,8,opt,name=evidence_ref,json=evidenceRef,proto3,oneof" json:"evidence_ref,omitempty"`
+	// operation/status/proxy_id are the ChangeTransaction details surfaced by
+	// the audit detail view (spec §7.1 GET /audit): the owning transaction's
+	// operation (create/update/delete/start/stop/rollback), its lifecycle
+	// status, and the affected proxy_config row id when one exists.
+	Operation     *string `protobuf:"bytes,9,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
+	Status        *string `protobuf:"bytes,10,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	ProxyId       *int64  `protobuf:"varint,11,opt,name=proxy_id,json=proxyId,proto3,oneof" json:"proxy_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuditEvent) Reset() {
+	*x = AuditEvent{}
+	mi := &file_common_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuditEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuditEvent) ProtoMessage() {}
+
+func (x *AuditEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuditEvent.ProtoReflect.Descriptor instead.
+func (*AuditEvent) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AuditEvent) GetTransactionId() string {
+	if x != nil && x.TransactionId != nil {
+		return *x.TransactionId
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetEventType() string {
+	if x != nil && x.EventType != nil {
+		return *x.EventType
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetSummary() string {
+	if x != nil && x.Summary != nil {
+		return *x.Summary
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetNodeId() string {
+	if x != nil && x.NodeId != nil {
+		return *x.NodeId
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetSuccess() bool {
+	if x != nil && x.Success != nil {
+		return *x.Success
+	}
+	return false
+}
+
+func (x *AuditEvent) GetCreatedAt() int64 {
+	if x != nil && x.CreatedAt != nil {
+		return *x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AuditEvent) GetErrorCode() string {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetEvidenceRef() string {
+	if x != nil && x.EvidenceRef != nil {
+		return *x.EvidenceRef
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetOperation() string {
+	if x != nil && x.Operation != nil {
+		return *x.Operation
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetStatus() string {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetProxyId() int64 {
+	if x != nil && x.ProxyId != nil {
+		return *x.ProxyId
+	}
+	return 0
+}
+
 type Client struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -298,7 +427,7 @@ type Client struct {
 
 func (x *Client) Reset() {
 	*x = Client{}
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +439,7 @@ func (x *Client) String() string {
 func (*Client) ProtoMessage() {}
 
 func (x *Client) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +452,7 @@ func (x *Client) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Client.ProtoReflect.Descriptor instead.
 func (*Client) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Client) GetId() string {
@@ -417,7 +546,7 @@ type Server struct {
 
 func (x *Server) Reset() {
 	*x = Server{}
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -429,7 +558,7 @@ func (x *Server) String() string {
 func (*Server) ProtoMessage() {}
 
 func (x *Server) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -442,7 +571,7 @@ func (x *Server) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server.ProtoReflect.Descriptor instead.
 func (*Server) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{4}
+	return file_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Server) GetId() string {
@@ -503,7 +632,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -515,7 +644,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -528,7 +657,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{5}
+	return file_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *User) GetUserID() int64 {
@@ -604,7 +733,7 @@ type ProxyInfo struct {
 
 func (x *ProxyInfo) Reset() {
 	*x = ProxyInfo{}
-	mi := &file_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -616,7 +745,7 @@ func (x *ProxyInfo) String() string {
 func (*ProxyInfo) ProtoMessage() {}
 
 func (x *ProxyInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[6]
+	mi := &file_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -629,7 +758,7 @@ func (x *ProxyInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyInfo.ProtoReflect.Descriptor instead.
 func (*ProxyInfo) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{6}
+	return file_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProxyInfo) GetName() string {
@@ -711,7 +840,7 @@ type ProxyConfig struct {
 
 func (x *ProxyConfig) Reset() {
 	*x = ProxyConfig{}
-	mi := &file_common_proto_msgTypes[7]
+	mi := &file_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +852,7 @@ func (x *ProxyConfig) String() string {
 func (*ProxyConfig) ProtoMessage() {}
 
 func (x *ProxyConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[7]
+	mi := &file_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +865,7 @@ func (x *ProxyConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyConfig.ProtoReflect.Descriptor instead.
 func (*ProxyConfig) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{7}
+	return file_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ProxyConfig) GetId() uint32 {
@@ -808,7 +937,7 @@ type ProxyWorkingStatus struct {
 
 func (x *ProxyWorkingStatus) Reset() {
 	*x = ProxyWorkingStatus{}
-	mi := &file_common_proto_msgTypes[8]
+	mi := &file_common_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -820,7 +949,7 @@ func (x *ProxyWorkingStatus) String() string {
 func (*ProxyWorkingStatus) ProtoMessage() {}
 
 func (x *ProxyWorkingStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[8]
+	mi := &file_common_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -833,7 +962,7 @@ func (x *ProxyWorkingStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyWorkingStatus.ProtoReflect.Descriptor instead.
 func (*ProxyWorkingStatus) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{8}
+	return file_common_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ProxyWorkingStatus) GetName() string {
@@ -887,7 +1016,7 @@ type Worker struct {
 
 func (x *Worker) Reset() {
 	*x = Worker{}
-	mi := &file_common_proto_msgTypes[9]
+	mi := &file_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -899,7 +1028,7 @@ func (x *Worker) String() string {
 func (*Worker) ProtoMessage() {}
 
 func (x *Worker) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[9]
+	mi := &file_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -912,7 +1041,7 @@ func (x *Worker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Worker.ProtoReflect.Descriptor instead.
 func (*Worker) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{9}
+	return file_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Worker) GetWorkerId() string {
@@ -982,7 +1111,7 @@ type WorkerList struct {
 
 func (x *WorkerList) Reset() {
 	*x = WorkerList{}
-	mi := &file_common_proto_msgTypes[10]
+	mi := &file_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -994,7 +1123,7 @@ func (x *WorkerList) String() string {
 func (*WorkerList) ProtoMessage() {}
 
 func (x *WorkerList) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[10]
+	mi := &file_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1007,7 +1136,7 @@ func (x *WorkerList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkerList.ProtoReflect.Descriptor instead.
 func (*WorkerList) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{10}
+	return file_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WorkerList) GetWorkers() []*Worker {
@@ -1034,7 +1163,7 @@ type Socket struct {
 
 func (x *Socket) Reset() {
 	*x = Socket{}
-	mi := &file_common_proto_msgTypes[11]
+	mi := &file_common_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1046,7 +1175,7 @@ func (x *Socket) String() string {
 func (*Socket) ProtoMessage() {}
 
 func (x *Socket) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[11]
+	mi := &file_common_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1059,7 +1188,7 @@ func (x *Socket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Socket.ProtoReflect.Descriptor instead.
 func (*Socket) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{11}
+	return file_common_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Socket) GetName() string {
@@ -1091,7 +1220,40 @@ const file_common_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\v2\x0e.common.StatusH\x00R\x06status\x88\x01\x01\x12\x17\n" +
 	"\x04data\x18\x02 \x01(\tH\x01R\x04data\x88\x01\x01B\t\n" +
 	"\a_statusB\a\n" +
-	"\x05_data\"\xf3\x03\n" +
+	"\x05_data\"\xa3\x04\n" +
+	"\n" +
+	"AuditEvent\x12*\n" +
+	"\x0etransaction_id\x18\x01 \x01(\tH\x00R\rtransactionId\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"event_type\x18\x02 \x01(\tH\x01R\teventType\x88\x01\x01\x12\x1d\n" +
+	"\asummary\x18\x03 \x01(\tH\x02R\asummary\x88\x01\x01\x12\x1c\n" +
+	"\anode_id\x18\x04 \x01(\tH\x03R\x06nodeId\x88\x01\x01\x12\x1d\n" +
+	"\asuccess\x18\x05 \x01(\bH\x04R\asuccess\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03H\x05R\tcreatedAt\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\a \x01(\tH\x06R\terrorCode\x88\x01\x01\x12&\n" +
+	"\fevidence_ref\x18\b \x01(\tH\aR\vevidenceRef\x88\x01\x01\x12!\n" +
+	"\toperation\x18\t \x01(\tH\bR\toperation\x88\x01\x01\x12\x1b\n" +
+	"\x06status\x18\n" +
+	" \x01(\tH\tR\x06status\x88\x01\x01\x12\x1e\n" +
+	"\bproxy_id\x18\v \x01(\x03H\n" +
+	"R\aproxyId\x88\x01\x01B\x11\n" +
+	"\x0f_transaction_idB\r\n" +
+	"\v_event_typeB\n" +
+	"\n" +
+	"\b_summaryB\n" +
+	"\n" +
+	"\b_node_idB\n" +
+	"\n" +
+	"\b_successB\r\n" +
+	"\v_created_atB\r\n" +
+	"\v_error_codeB\x0f\n" +
+	"\r_evidence_refB\f\n" +
+	"\n" +
+	"_operationB\t\n" +
+	"\a_statusB\v\n" +
+	"\t_proxy_id\"\xf3\x03\n" +
 	"\x06Client\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1b\n" +
 	"\x06secret\x18\x02 \x01(\tH\x01R\x06secret\x88\x01\x01\x12\x1b\n" +
@@ -1264,28 +1426,29 @@ func file_common_proto_rawDescGZIP() []byte {
 }
 
 var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_common_proto_goTypes = []any{
 	(RespCode)(0),              // 0: common.RespCode
 	(ClientType)(0),            // 1: common.ClientType
 	(*Status)(nil),             // 2: common.Status
 	(*CommonRequest)(nil),      // 3: common.CommonRequest
 	(*CommonResponse)(nil),     // 4: common.CommonResponse
-	(*Client)(nil),             // 5: common.Client
-	(*Server)(nil),             // 6: common.Server
-	(*User)(nil),               // 7: common.User
-	(*ProxyInfo)(nil),          // 8: common.ProxyInfo
-	(*ProxyConfig)(nil),        // 9: common.ProxyConfig
-	(*ProxyWorkingStatus)(nil), // 10: common.ProxyWorkingStatus
-	(*Worker)(nil),             // 11: common.Worker
-	(*WorkerList)(nil),         // 12: common.WorkerList
-	(*Socket)(nil),             // 13: common.Socket
+	(*AuditEvent)(nil),         // 5: common.AuditEvent
+	(*Client)(nil),             // 6: common.Client
+	(*Server)(nil),             // 7: common.Server
+	(*User)(nil),               // 8: common.User
+	(*ProxyInfo)(nil),          // 9: common.ProxyInfo
+	(*ProxyConfig)(nil),        // 10: common.ProxyConfig
+	(*ProxyWorkingStatus)(nil), // 11: common.ProxyWorkingStatus
+	(*Worker)(nil),             // 12: common.Worker
+	(*WorkerList)(nil),         // 13: common.WorkerList
+	(*Socket)(nil),             // 14: common.Socket
 }
 var file_common_proto_depIdxs = []int32{
 	0,  // 0: common.Status.code:type_name -> common.RespCode
 	2,  // 1: common.CommonResponse.status:type_name -> common.Status
-	13, // 2: common.Worker.socket:type_name -> common.Socket
-	11, // 3: common.WorkerList.workers:type_name -> common.Worker
+	14, // 2: common.Worker.socket:type_name -> common.Socket
+	12, // 3: common.WorkerList.workers:type_name -> common.Worker
 	4,  // [4:4] is the sub-list for method output_type
 	4,  // [4:4] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
@@ -1309,13 +1472,14 @@ func file_common_proto_init() {
 	file_common_proto_msgTypes[9].OneofWrappers = []any{}
 	file_common_proto_msgTypes[10].OneofWrappers = []any{}
 	file_common_proto_msgTypes[11].OneofWrappers = []any{}
+	file_common_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

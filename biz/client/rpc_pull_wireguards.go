@@ -10,6 +10,10 @@ import (
 )
 
 func PullWireGuards(appInstance app.Application, clientID, clientSecret string) error {
+	// S5b gate: fail closed before any Master RPC / WireGuard manager access.
+	if !appInstance.GetConfig().Client.Features.EnableWireGuard {
+		return nil
+	}
 	ctx := app.NewContext(context.Background(), appInstance)
 	log := ctx.Logger().WithField("op", "PullWireGuards")
 

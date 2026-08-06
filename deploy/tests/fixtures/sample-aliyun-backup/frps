@@ -1,0 +1,3 @@
+#!/bin/sh
+# fixture frps binary placeholder (offline test only)
+echo fixture-frps

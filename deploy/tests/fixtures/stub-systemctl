@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Test stub for systemctl. Records invocations to $STUB_LOG.
+# Scriptable behavior via:
+#   STUB_SYSTEMCTL_STOP_EXIT      exit code for "stop"            (default 0)
+#   STUB_SYSTEMCTL_STOP_FAIL_UNITS space-separated units whose "stop"
+#                                 must fail (exit 1) regardless of
+#                                 STUB_SYSTEMCTL_STOP_EXIT (default none)
+#   STUB_SYSTEMCTL_START_EXIT     exit code for "start"           (default 0)
+#   STUB_IS_ACTIVE                value printed by "is-active"    (default active)
+set -u
+printf 'systemctl %s\n' "$*" >> "${STUB_LOG:?STUB_LOG must be set}"
+case "${1:-}" in
+  stop)
+    for u in ${STUB_SYSTEMCTL_STOP_FAIL_UNITS:-}; do
+      [[ "${2:-}" == "$u" ]] && exit 1
+    done
+    exit "${STUB_SYSTEMCTL_STOP_EXIT:-0}" ;;
+  start) exit "${STUB_SYSTEMCTL_START_EXIT:-0}" ;;
+  is-active) printf '%s\n' "${STUB_IS_ACTIVE:-active}"; exit 0 ;;
+  *) exit 0 ;;
+esac

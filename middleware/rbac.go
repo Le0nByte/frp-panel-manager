@@ -16,19 +16,18 @@ func RBAC(appInstance app.Application) func(*gin.Context) {
 		// appCtx := app.NewContext(c, appInstance)
 		perms, err := common.GetTokenPermission(c)
 		userInfo := common.GetUserInfo(c)
-		token := common.GetTokenString(c)
 		path := c.Request.URL.Path
 		method := c.Request.Method
 
 		if err != nil {
-			logger.Logger(c).WithError(err).Errorf("get token permission error, token: [%s], userInfo:[%s]", token, utils.MarshalForJson(userInfo.GetSafeUserInfo()))
+			logger.Logger(c).WithError(err).Errorf("get token permission error, userInfo:[%s]", utils.MarshalForJson(userInfo.GetSafeUserInfo()))
 			common.ErrResp(c, &pb.CommonResponse{Status: &pb.Status{Code: pb.RespCode_RESP_CODE_INVALID, Message: err.Error()}}, err.Error())
 			c.Abort()
 			return
 		}
 
 		if len(perms) == 0 {
-			logger.Logger(c).WithError(err).Errorf("user has no permission, token: [%s], userInfo:[%s]", token, utils.MarshalForJson(userInfo.GetSafeUserInfo()))
+			logger.Logger(c).WithError(err).Errorf("user has no permission, userInfo:[%s]", utils.MarshalForJson(userInfo.GetSafeUserInfo()))
 			common.ErrResp(c, &pb.CommonResponse{Status: &pb.Status{Code: pb.RespCode_RESP_CODE_INVALID, Message: "user has no permission"}}, "user has no permission")
 			c.Abort()
 			return

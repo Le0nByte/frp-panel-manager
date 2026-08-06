@@ -83,15 +83,19 @@ func newMasterCli(appInstance app.Application) pb.MasterClient {
 	return pb.NewMasterClient(conn)
 }
 
-func httpCli() *req.Client {
+// httpCli builds the HTTP client used for the cert-bootstrap and join API.
+// TLS verification honors CLIENT_TLS_INSECURE_SKIP_VERIFY instead of being
+// unconditionally bypassed (spec §10.5); with skip=false the system root
+// pool is used, so the API's Let's Encrypt certificate verifies normally.
+func httpCli(cfg conf.Config) *req.Client {
 	c := req.C()
-	c.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	c.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.Client.TLSInsecureSkipVerify}
 	return c
 }
 
 func GetClientCert(appInstance app.Application, clientID, clientSecret string, clientType pb.ClientType) []byte {
 	apiEndpoint := conf.GetAPIURL(appInstance.GetConfig())
-	c := httpCli()
+	c := httpCli(appInstance.GetConfig())
 
 	rawReq, err := proto.Marshal(&pb.GetClientCertRequest{
 		ClientId:     clientID,
@@ -118,7 +122,7 @@ func GetClientCert(appInstance app.Application, clientID, clientSecret string, c
 func InitClient(cfg conf.Config, clientID, joinToken string, ephemeral *bool) (*pb.InitClientResponse, error) {
 	apiEndpoint := conf.GetAPIURL(cfg)
 
-	c := httpCli()
+	c := httpCli(cfg)
 
 	if ephemeral == nil {
 		ephemeral = lo.ToPtr(true) // default to ephemeral
@@ -149,7 +153,7 @@ func InitClient(cfg conf.Config, clientID, joinToken string, ephemeral *bool) (*
 
 func GetClient(cfg conf.Config, clientID, joinToken string) (*pb.GetClientResponse, error) {
 	apiEndpoint := conf.GetAPIURL(cfg)
-	c := httpCli()
+	c := httpCli(cfg)
 
 	rawReq, err := proto.Marshal(&pb.GetClientRequest{
 		ClientId: &clientID,

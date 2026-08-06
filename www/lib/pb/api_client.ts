@@ -144,6 +144,15 @@ export interface UpdateFRPCRequest {
      * @generated from protobuf field: optional string frps_url = 5;
      */
     frpsUrl?: string;
+    /**
+     * Directed handler switch (safe-create atomic shadow): when set and
+     * different from client_id, the agent stops/deletes the live handler for
+     * (replace_client_id, server_id) BEFORE adding/updating the client_id
+     * handler — never StopAll. Empty = no replacement.
+     *
+     * @generated from protobuf field: optional string replace_client_id = 6;
+     */
+    replaceClientId?: string;
 }
 /**
  * @generated from protobuf message api_client.UpdateFRPCResponse
@@ -292,6 +301,14 @@ export interface CreateProxyConfigRequest {
      * @generated from protobuf field: optional bool overwrite = 4;
      */
     overwrite?: boolean;
+    /**
+     * @generated from protobuf field: optional string idempotency_key = 12;
+     */
+    idempotencyKey?: string;
+    /**
+     * @generated from protobuf field: optional string preflight_token = 13;
+     */
+    preflightToken?: string;
 }
 /**
  * @generated from protobuf message api_client.CreateProxyConfigResponse
@@ -301,6 +318,14 @@ export interface CreateProxyConfigResponse {
      * @generated from protobuf field: optional common.Status status = 1;
      */
     status?: Status;
+    /**
+     * Structured error code (spec §7.3): a stable machine-checkable code like
+     * PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+     * human-readable and never embeds the code as a prefix.
+     *
+     * @generated from protobuf field: optional string error_code = 2;
+     */
+    errorCode?: string;
 }
 /**
  * @generated from protobuf message api_client.DeleteProxyConfigRequest
@@ -318,6 +343,14 @@ export interface DeleteProxyConfigRequest {
      * @generated from protobuf field: optional string name = 3;
      */
     name?: string;
+    /**
+     * Idempotency key (spec §7.3): a stable user-supplied key so retried
+     * requests converge on the same transaction. Mirrors
+     * CreateProxyConfigRequest.idempotency_key.
+     *
+     * @generated from protobuf field: optional string idempotency_key = 12;
+     */
+    idempotencyKey?: string;
 }
 /**
  * @generated from protobuf message api_client.DeleteProxyConfigResponse
@@ -327,6 +360,15 @@ export interface DeleteProxyConfigResponse {
      * @generated from protobuf field: optional common.Status status = 1;
      */
     status?: Status;
+    /**
+     * Structured error code (spec §7.3): a stable machine-checkable code like
+     * PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+     * human-readable and never embeds the code as a prefix. Mirrors
+     * CreateProxyConfigResponse.error_code.
+     *
+     * @generated from protobuf field: optional string error_code = 2;
+     */
+    errorCode?: string;
 }
 /**
  * @generated from protobuf message api_client.UpdateProxyConfigRequest
@@ -348,6 +390,14 @@ export interface UpdateProxyConfigRequest {
      * @generated from protobuf field: optional bytes config = 4;
      */
     config?: Uint8Array;
+    /**
+     * @generated from protobuf field: optional string idempotency_key = 12;
+     */
+    idempotencyKey?: string;
+    /**
+     * @generated from protobuf field: optional string preflight_token = 13;
+     */
+    preflightToken?: string;
 }
 /**
  * @generated from protobuf message api_client.UpdateProxyConfigResponse
@@ -357,6 +407,15 @@ export interface UpdateProxyConfigResponse {
      * @generated from protobuf field: optional common.Status status = 1;
      */
     status?: Status;
+    /**
+     * Structured error code (spec §7.3): a stable machine-checkable code like
+     * PORT_REMOTE_IN_USE; empty on success. Status.Message stays purely
+     * human-readable and never embeds the code as a prefix. Mirrors
+     * CreateProxyConfigResponse.error_code.
+     *
+     * @generated from protobuf field: optional string error_code = 2;
+     */
+    errorCode?: string;
 }
 /**
  * @generated from protobuf message api_client.GetProxyConfigRequest
@@ -408,6 +467,12 @@ export interface StopProxyRequest {
      * @generated from protobuf field: optional string name = 3;
      */
     name?: string;
+    /**
+     * Idempotency key (spec §7.3): mirrors CreateProxyConfigRequest.idempotency_key.
+     *
+     * @generated from protobuf field: optional string idempotency_key = 12;
+     */
+    idempotencyKey?: string;
 }
 /**
  * @generated from protobuf message api_client.StopProxyResponse
@@ -417,6 +482,12 @@ export interface StopProxyResponse {
      * @generated from protobuf field: optional common.Status status = 1;
      */
     status?: Status;
+    /**
+     * Structured error code (spec §7.3): mirrors CreateProxyConfigResponse.error_code.
+     *
+     * @generated from protobuf field: optional string error_code = 2;
+     */
+    errorCode?: string;
 }
 /**
  * @generated from protobuf message api_client.StartProxyRequest
@@ -434,6 +505,12 @@ export interface StartProxyRequest {
      * @generated from protobuf field: optional string name = 3;
      */
     name?: string;
+    /**
+     * Idempotency key (spec §7.3): mirrors CreateProxyConfigRequest.idempotency_key.
+     *
+     * @generated from protobuf field: optional string idempotency_key = 12;
+     */
+    idempotencyKey?: string;
 }
 /**
  * @generated from protobuf message api_client.StartProxyResponse
@@ -443,6 +520,12 @@ export interface StartProxyResponse {
      * @generated from protobuf field: optional common.Status status = 1;
      */
     status?: Status;
+    /**
+     * Structured error code (spec §7.3): mirrors CreateProxyConfigResponse.error_code.
+     *
+     * @generated from protobuf field: optional string error_code = 2;
+     */
+    errorCode?: string;
 }
 /**
  * @generated from protobuf message api_client.CreateWorkerRequest
@@ -1239,7 +1322,8 @@ class UpdateFRPCRequest$Type extends MessageType<UpdateFRPCRequest> {
             { no: 2, name: "server_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "config", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 4, name: "comment", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "frps_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 5, name: "frps_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 6, name: "replace_client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<UpdateFRPCRequest>): UpdateFRPCRequest {
@@ -1268,6 +1352,9 @@ class UpdateFRPCRequest$Type extends MessageType<UpdateFRPCRequest> {
                 case /* optional string frps_url */ 5:
                     message.frpsUrl = reader.string();
                     break;
+                case /* optional string replace_client_id */ 6:
+                    message.replaceClientId = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1295,6 +1382,9 @@ class UpdateFRPCRequest$Type extends MessageType<UpdateFRPCRequest> {
         /* optional string frps_url = 5; */
         if (message.frpsUrl !== undefined)
             writer.tag(5, WireType.LengthDelimited).string(message.frpsUrl);
+        /* optional string replace_client_id = 6; */
+        if (message.replaceClientId !== undefined)
+            writer.tag(6, WireType.LengthDelimited).string(message.replaceClientId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1869,7 +1959,9 @@ class CreateProxyConfigRequest$Type extends MessageType<CreateProxyConfigRequest
             { no: 1, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "server_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "config", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 4, name: "overwrite", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 4, name: "overwrite", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 12, name: "idempotency_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 13, name: "preflight_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CreateProxyConfigRequest>): CreateProxyConfigRequest {
@@ -1895,6 +1987,12 @@ class CreateProxyConfigRequest$Type extends MessageType<CreateProxyConfigRequest
                 case /* optional bool overwrite */ 4:
                     message.overwrite = reader.bool();
                     break;
+                case /* optional string idempotency_key */ 12:
+                    message.idempotencyKey = reader.string();
+                    break;
+                case /* optional string preflight_token */ 13:
+                    message.preflightToken = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1919,6 +2017,12 @@ class CreateProxyConfigRequest$Type extends MessageType<CreateProxyConfigRequest
         /* optional bool overwrite = 4; */
         if (message.overwrite !== undefined)
             writer.tag(4, WireType.Varint).bool(message.overwrite);
+        /* optional string idempotency_key = 12; */
+        if (message.idempotencyKey !== undefined)
+            writer.tag(12, WireType.LengthDelimited).string(message.idempotencyKey);
+        /* optional string preflight_token = 13; */
+        if (message.preflightToken !== undefined)
+            writer.tag(13, WireType.LengthDelimited).string(message.preflightToken);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1933,7 +2037,8 @@ export const CreateProxyConfigRequest = new CreateProxyConfigRequest$Type();
 class CreateProxyConfigResponse$Type extends MessageType<CreateProxyConfigResponse> {
     constructor() {
         super("api_client.CreateProxyConfigResponse", [
-            { no: 1, name: "status", kind: "message", T: () => Status }
+            { no: 1, name: "status", kind: "message", T: () => Status },
+            { no: 2, name: "error_code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CreateProxyConfigResponse>): CreateProxyConfigResponse {
@@ -1950,6 +2055,9 @@ class CreateProxyConfigResponse$Type extends MessageType<CreateProxyConfigRespon
                 case /* optional common.Status status */ 1:
                     message.status = Status.internalBinaryRead(reader, reader.uint32(), options, message.status);
                     break;
+                case /* optional string error_code */ 2:
+                    message.errorCode = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1965,6 +2073,9 @@ class CreateProxyConfigResponse$Type extends MessageType<CreateProxyConfigRespon
         /* optional common.Status status = 1; */
         if (message.status)
             Status.internalBinaryWrite(message.status, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* optional string error_code = 2; */
+        if (message.errorCode !== undefined)
+            writer.tag(2, WireType.LengthDelimited).string(message.errorCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1981,7 +2092,8 @@ class DeleteProxyConfigRequest$Type extends MessageType<DeleteProxyConfigRequest
         super("api_client.DeleteProxyConfigRequest", [
             { no: 1, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "server_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 12, name: "idempotency_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<DeleteProxyConfigRequest>): DeleteProxyConfigRequest {
@@ -2004,6 +2116,9 @@ class DeleteProxyConfigRequest$Type extends MessageType<DeleteProxyConfigRequest
                 case /* optional string name */ 3:
                     message.name = reader.string();
                     break;
+                case /* optional string idempotency_key */ 12:
+                    message.idempotencyKey = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2025,6 +2140,9 @@ class DeleteProxyConfigRequest$Type extends MessageType<DeleteProxyConfigRequest
         /* optional string name = 3; */
         if (message.name !== undefined)
             writer.tag(3, WireType.LengthDelimited).string(message.name);
+        /* optional string idempotency_key = 12; */
+        if (message.idempotencyKey !== undefined)
+            writer.tag(12, WireType.LengthDelimited).string(message.idempotencyKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2039,7 +2157,8 @@ export const DeleteProxyConfigRequest = new DeleteProxyConfigRequest$Type();
 class DeleteProxyConfigResponse$Type extends MessageType<DeleteProxyConfigResponse> {
     constructor() {
         super("api_client.DeleteProxyConfigResponse", [
-            { no: 1, name: "status", kind: "message", T: () => Status }
+            { no: 1, name: "status", kind: "message", T: () => Status },
+            { no: 2, name: "error_code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<DeleteProxyConfigResponse>): DeleteProxyConfigResponse {
@@ -2056,6 +2175,9 @@ class DeleteProxyConfigResponse$Type extends MessageType<DeleteProxyConfigRespon
                 case /* optional common.Status status */ 1:
                     message.status = Status.internalBinaryRead(reader, reader.uint32(), options, message.status);
                     break;
+                case /* optional string error_code */ 2:
+                    message.errorCode = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2071,6 +2193,9 @@ class DeleteProxyConfigResponse$Type extends MessageType<DeleteProxyConfigRespon
         /* optional common.Status status = 1; */
         if (message.status)
             Status.internalBinaryWrite(message.status, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* optional string error_code = 2; */
+        if (message.errorCode !== undefined)
+            writer.tag(2, WireType.LengthDelimited).string(message.errorCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2088,7 +2213,9 @@ class UpdateProxyConfigRequest$Type extends MessageType<UpdateProxyConfigRequest
             { no: 1, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "server_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "config", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
+            { no: 4, name: "config", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 12, name: "idempotency_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 13, name: "preflight_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<UpdateProxyConfigRequest>): UpdateProxyConfigRequest {
@@ -2114,6 +2241,12 @@ class UpdateProxyConfigRequest$Type extends MessageType<UpdateProxyConfigRequest
                 case /* optional bytes config */ 4:
                     message.config = reader.bytes();
                     break;
+                case /* optional string idempotency_key */ 12:
+                    message.idempotencyKey = reader.string();
+                    break;
+                case /* optional string preflight_token */ 13:
+                    message.preflightToken = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2138,6 +2271,12 @@ class UpdateProxyConfigRequest$Type extends MessageType<UpdateProxyConfigRequest
         /* optional bytes config = 4; */
         if (message.config !== undefined)
             writer.tag(4, WireType.LengthDelimited).bytes(message.config);
+        /* optional string idempotency_key = 12; */
+        if (message.idempotencyKey !== undefined)
+            writer.tag(12, WireType.LengthDelimited).string(message.idempotencyKey);
+        /* optional string preflight_token = 13; */
+        if (message.preflightToken !== undefined)
+            writer.tag(13, WireType.LengthDelimited).string(message.preflightToken);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2152,7 +2291,8 @@ export const UpdateProxyConfigRequest = new UpdateProxyConfigRequest$Type();
 class UpdateProxyConfigResponse$Type extends MessageType<UpdateProxyConfigResponse> {
     constructor() {
         super("api_client.UpdateProxyConfigResponse", [
-            { no: 1, name: "status", kind: "message", T: () => Status }
+            { no: 1, name: "status", kind: "message", T: () => Status },
+            { no: 2, name: "error_code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<UpdateProxyConfigResponse>): UpdateProxyConfigResponse {
@@ -2169,6 +2309,9 @@ class UpdateProxyConfigResponse$Type extends MessageType<UpdateProxyConfigRespon
                 case /* optional common.Status status */ 1:
                     message.status = Status.internalBinaryRead(reader, reader.uint32(), options, message.status);
                     break;
+                case /* optional string error_code */ 2:
+                    message.errorCode = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2184,6 +2327,9 @@ class UpdateProxyConfigResponse$Type extends MessageType<UpdateProxyConfigRespon
         /* optional common.Status status = 1; */
         if (message.status)
             Status.internalBinaryWrite(message.status, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* optional string error_code = 2; */
+        if (message.errorCode !== undefined)
+            writer.tag(2, WireType.LengthDelimited).string(message.errorCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2320,7 +2466,8 @@ class StopProxyRequest$Type extends MessageType<StopProxyRequest> {
         super("api_client.StopProxyRequest", [
             { no: 1, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "server_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 12, name: "idempotency_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<StopProxyRequest>): StopProxyRequest {
@@ -2343,6 +2490,9 @@ class StopProxyRequest$Type extends MessageType<StopProxyRequest> {
                 case /* optional string name */ 3:
                     message.name = reader.string();
                     break;
+                case /* optional string idempotency_key */ 12:
+                    message.idempotencyKey = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2364,6 +2514,9 @@ class StopProxyRequest$Type extends MessageType<StopProxyRequest> {
         /* optional string name = 3; */
         if (message.name !== undefined)
             writer.tag(3, WireType.LengthDelimited).string(message.name);
+        /* optional string idempotency_key = 12; */
+        if (message.idempotencyKey !== undefined)
+            writer.tag(12, WireType.LengthDelimited).string(message.idempotencyKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2378,7 +2531,8 @@ export const StopProxyRequest = new StopProxyRequest$Type();
 class StopProxyResponse$Type extends MessageType<StopProxyResponse> {
     constructor() {
         super("api_client.StopProxyResponse", [
-            { no: 1, name: "status", kind: "message", T: () => Status }
+            { no: 1, name: "status", kind: "message", T: () => Status },
+            { no: 2, name: "error_code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<StopProxyResponse>): StopProxyResponse {
@@ -2395,6 +2549,9 @@ class StopProxyResponse$Type extends MessageType<StopProxyResponse> {
                 case /* optional common.Status status */ 1:
                     message.status = Status.internalBinaryRead(reader, reader.uint32(), options, message.status);
                     break;
+                case /* optional string error_code */ 2:
+                    message.errorCode = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2410,6 +2567,9 @@ class StopProxyResponse$Type extends MessageType<StopProxyResponse> {
         /* optional common.Status status = 1; */
         if (message.status)
             Status.internalBinaryWrite(message.status, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* optional string error_code = 2; */
+        if (message.errorCode !== undefined)
+            writer.tag(2, WireType.LengthDelimited).string(message.errorCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2426,7 +2586,8 @@ class StartProxyRequest$Type extends MessageType<StartProxyRequest> {
         super("api_client.StartProxyRequest", [
             { no: 1, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "server_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 12, name: "idempotency_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<StartProxyRequest>): StartProxyRequest {
@@ -2449,6 +2610,9 @@ class StartProxyRequest$Type extends MessageType<StartProxyRequest> {
                 case /* optional string name */ 3:
                     message.name = reader.string();
                     break;
+                case /* optional string idempotency_key */ 12:
+                    message.idempotencyKey = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2470,6 +2634,9 @@ class StartProxyRequest$Type extends MessageType<StartProxyRequest> {
         /* optional string name = 3; */
         if (message.name !== undefined)
             writer.tag(3, WireType.LengthDelimited).string(message.name);
+        /* optional string idempotency_key = 12; */
+        if (message.idempotencyKey !== undefined)
+            writer.tag(12, WireType.LengthDelimited).string(message.idempotencyKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2484,7 +2651,8 @@ export const StartProxyRequest = new StartProxyRequest$Type();
 class StartProxyResponse$Type extends MessageType<StartProxyResponse> {
     constructor() {
         super("api_client.StartProxyResponse", [
-            { no: 1, name: "status", kind: "message", T: () => Status }
+            { no: 1, name: "status", kind: "message", T: () => Status },
+            { no: 2, name: "error_code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<StartProxyResponse>): StartProxyResponse {
@@ -2501,6 +2669,9 @@ class StartProxyResponse$Type extends MessageType<StartProxyResponse> {
                 case /* optional common.Status status */ 1:
                     message.status = Status.internalBinaryRead(reader, reader.uint32(), options, message.status);
                     break;
+                case /* optional string error_code */ 2:
+                    message.errorCode = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2516,6 +2687,9 @@ class StartProxyResponse$Type extends MessageType<StartProxyResponse> {
         /* optional common.Status status = 1; */
         if (message.status)
             Status.internalBinaryWrite(message.status, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* optional string error_code = 2; */
+        if (message.errorCode !== undefined)
+            writer.tag(2, WireType.LengthDelimited).string(message.errorCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

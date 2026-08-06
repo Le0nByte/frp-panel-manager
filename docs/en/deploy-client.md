@@ -28,8 +28,8 @@ Before deploying the Client, ensure the corresponding Server’s configuration i
    ```bash
    curl -fSL https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh \
      | bash -s -- client -s abc -i user.c.client1 \
-     --api-url http://frpp.example.com:9000 \
-     --rpc-url grpc://frpp-rpc.example.com:9001
+     --api-url https://frpp.example.com \
+     --rpc-url grpc://frpp-rpc.example.com:9101
    ```
 
 3. If you’re in mainland China, you may want to use a GitHub proxy. For example, with `ghfast`:
@@ -37,17 +37,17 @@ Before deploying the Client, ensure the corresponding Server’s configuration i
    ```bash
    curl -fSL https://ghfast.top/https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh \
      | bash -s -- --github-proxy https://ghfast.top/ client -s abc -i user.c.client1 \
-     --api-url http://frpp.example.com:9000 \
-     --rpc-url grpc://frpp-rpc.example.com:9001
+     --api-url https://frpp.example.com \
+     --rpc-url grpc://frpp-rpc.example.com:9101
    ```
 
-4. If you use a reverse-proxy with TLS (443 → Master 9000/API), adjust the command:
+4. If you use a reverse-proxy with TLS (443 → Master 9100/API), adjust the command:
 
    ```bash
    curl -fSL https://ghfast.top/https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh \
      | bash -s -- --github-proxy https://ghfast.top/ client -s abc -i user.c.client1 \
      --api-url https://frpp.example.com:443 \
-     --rpc-url wss://frpp.example.com:443
+     --rpc-url grpc://frpp-rpc.example.com:9101
    ```
 
 ### Docker Compose Deployment
@@ -56,8 +56,8 @@ Before deploying the Client, ensure the corresponding Server’s configuration i
 
    ```bash
    ./frp-panel client -s abc -i user.c.client1 \
-     --api-url http://frpp.example.com:9000 \
-     --rpc-url grpc://frpp-rpc.example.com:9001
+     --api-url https://frpp.example.com \
+     --rpc-url grpc://frpp-rpc.example.com:9101
    ```
 
 2. If using TLS proxy, modify:
@@ -65,7 +65,7 @@ Before deploying the Client, ensure the corresponding Server’s configuration i
    ```bash
    ./frp-panel client -s abc -i user.c.client1 \
      --api-url https://frpp.example.com:443 \
-     --rpc-url wss://frpp.example.com:443
+     --rpc-url grpc://frpp-rpc.example.com:9101
    ```
 
 3. Create `docker-compose.yaml`:
@@ -78,9 +78,10 @@ Before deploying the Client, ensure the corresponding Server’s configuration i
        container_name: frp-panel-client
        network_mode: host
        restart: unless-stopped
-       command: client -s abc -i user.c.client1 \
-         --api-url https://frpp.example.com:443 \
-         --rpc-url wss://frpp.example.com:443
+       command: >-
+         client -s abc -i user.c.client1
+         --api-url https://frpp.example.com:443
+         --rpc-url grpc://frpp-rpc.example.com:9101
    ```
 
 ### Install as a systemd Service
@@ -92,7 +93,7 @@ The `frp-panel` binary can manage a systemd service named `frpp`. Use `frp-panel
   ```bash
   sudo ./frp-panel install client -s abc -i user.c.client1 \
     --api-url https://frpp.example.com:443 \
-    --rpc-url wss://frpp.example.com:443
+    --rpc-url grpc://frpp-rpc.example.com:9101
   ```
 
 - Uninstall the `frpp` service:
@@ -128,9 +129,9 @@ The `frp-panel` binary can manage a systemd service named `frpp`. Use `frp-panel
 In PowerShell, in the directory containing the executable, run the startup command copied from the Web UI:
 
 ```powershell
-.\frp-panel.exe client -s abc -i user.c.client1 \
-  --api-url https://frpp.example.com:443 \
-  --rpc-url wss://frpp.example.com:443
+.\frp-panel.exe client -s abc -i user.c.client1 `
+  --api-url https://frpp.example.com:443 `
+  --rpc-url grpc://frpp-rpc.example.com:9101
 ```
 
 ### Install as a Windows Service
@@ -138,9 +139,9 @@ In PowerShell, in the directory containing the executable, run the startup comma
 Use the same commands as on Linux without `sudo` and adjust the executable path:
 
 ```powershell
-C:\frpp\frp-panel.exe install client -s abc -i user.c.client1 \
-  --api-url https://frpp.example.com:443 \
-  --rpc-url wss://frpp.example.com:443
+C:\frpp\frp-panel.exe install client -s abc -i user.c.client1 `
+  --api-url https://frpp.example.com:443 `
+  --rpc-url grpc://frpp-rpc.example.com:9101
 
 # Then manage the service:
 C:\frpp\frp-panel.exe start

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check FRP Panel certificate renewal every 12 hours
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=12h
+Persistent=true
+Unit=frp-panel-cert-renew.service
+
+[Install]
+WantedBy=timers.target

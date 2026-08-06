@@ -1,0 +1,6 @@
+# frps-phone fixture config (offline test only)
+serverAddr = "0.0.0.0"
+serverPort = 7002
+bindPort = 7002
+auth.method = "token"
+auth.token = "FIXTURE_FRPS_TOKEN_0123456789"

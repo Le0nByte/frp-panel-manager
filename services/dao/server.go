@@ -79,7 +79,7 @@ func (m *serverMutation) UpdateDefaultServer(c *models.Server) error {
 
 func (q *serverQuery) ValidateServerSecret(serverID string, secret string) (*models.ServerEntity, error) {
 	if serverID == "" || secret == "" {
-		return nil, fmt.Errorf("invalid request")
+		return nil, ErrInvalidServerSecret
 	}
 	db := q.ctx.GetApp().GetDBManager().GetDefaultDB()
 	c := &models.Server{}
@@ -89,10 +89,13 @@ func (q *serverQuery) ValidateServerSecret(serverID string, secret string) (*mod
 		}}).
 		First(c).Error
 	if err != nil {
+		// gorm.ErrRecordNotFound and any other DB error pass through
+		// unchanged; only empty/mismatch secret inputs are the typed
+		// sentinel (I3-A).
 		return nil, err
 	}
 	if c.ConnectSecret != secret {
-		return nil, fmt.Errorf("invalid secret")
+		return nil, ErrInvalidServerSecret
 	}
 	return c.ServerEntity, nil
 }

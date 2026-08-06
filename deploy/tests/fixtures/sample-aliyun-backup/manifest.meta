@@ -1,0 +1,5 @@
+frps-phone.toml	/opt/frp/frp_0.65.0_linux_amd64/frps-phone.toml	644	0:0
+frps-phone.service	/etc/systemd/system/frps-phone.service	644	0:0
+frps	/opt/frp/frp_0.65.0_linux_amd64/frps	755	0:0
+frp-panel.env	/etc/frp-panel/frp-panel.env	600	0:0
+data.db	/opt/frp-panel/data/data.db	640	0:0

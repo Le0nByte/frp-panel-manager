@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/VaalaCat/frp-panel/biz/master/client"
+	"github.com/VaalaCat/frp-panel/biz/master/readonly"
 	"github.com/VaalaCat/frp-panel/common"
+	"github.com/VaalaCat/frp-panel/defs"
 	"github.com/VaalaCat/frp-panel/models"
 	"github.com/VaalaCat/frp-panel/pb"
 	"github.com/VaalaCat/frp-panel/services/app"
 	"github.com/VaalaCat/frp-panel/services/dao"
-	"github.com/VaalaCat/frp-panel/utils"
 	"github.com/VaalaCat/frp-panel/utils/logger"
 	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/samber/lo"
@@ -18,54 +19,22 @@ import (
 	"gorm.io/gorm"
 )
 
+// safeCreateCoordinator is the package-wide default coordinator used by the
+// CreateProxyConfig handler. It is a REAL implementation (DAO + RPC +
+// configured key file), never a stub; tests swap it for a coordinator with
+// injected deps and restore it afterwards, mirroring the preflightTimeout
+// override pattern.
+var safeCreateCoordinator = NewDefaultCoordinator()
+
+// CreateProxyConfig is the live /create_config route entry. I1-B: while
+// the master is blocked read-only, the entry answers the structured
+// READ_ONLY response itself — the coordinator (and with it any lock, DB
+// write, snapshot or agent RPC) is never reached.
 func CreateProxyConfig(c *app.Context, req *pb.CreateProxyConfigRequest) (*pb.CreateProxyConfigResponse, error) {
-
-	if len(req.GetClientId()) == 0 || len(req.GetServerId()) == 0 || len(req.GetConfig()) == 0 {
-		return nil, fmt.Errorf("request invalid")
+	if readonly.Blocked() {
+		return invalidCreateResp(defs.ErrorCodeReadOnly, readonly.ErrReadOnly.Error()), nil
 	}
-
-	var (
-		userInfo = common.GetUserInfo(c)
-		clientID = req.GetClientId()
-		serverID = req.GetServerId()
-	)
-
-	clientEntity, err := GetClientWithMakeShadow(c, clientID, serverID)
-	if err != nil {
-		logger.Logger(c).WithError(err).Errorf("cannot get client, id: [%s]", clientID)
-		return nil, err
-	}
-
-	_, err = dao.NewQuery(c).GetServerByServerID(userInfo, serverID)
-	if err != nil {
-		logger.Logger(c).WithError(err).Errorf("cannot get server, id: [%s]", serverID)
-		return nil, err
-	}
-
-	typedProxyCfgs, err := utils.LoadProxiesFromContent(req.GetConfig())
-	if err != nil {
-		logger.Logger(c).WithError(err).Errorf("cannot load proxies from content")
-		return nil, err
-	}
-	if len(typedProxyCfgs) == 0 || len(typedProxyCfgs) > 1 {
-		logger.Logger(c).Errorf("invalid config, cfg len: [%d]", len(typedProxyCfgs))
-		return nil, fmt.Errorf("invalid config")
-	}
-
-	if err := CreateProxyConfigWithTypedConfig(c, CreateProxyConfigWithTypedConfigParam{
-		ClientID:     clientID,
-		ServerID:     serverID,
-		ProxyCfg:     typedProxyCfgs[0],
-		ClientEntity: clientEntity,
-		Overwrite:    req.GetOverwrite(),
-	}); err != nil {
-		logger.Logger(c).WithError(err).Errorf("cannot create proxy config")
-		return nil, err
-	}
-
-	return &pb.CreateProxyConfigResponse{
-		Status: &pb.Status{Code: pb.RespCode_RESP_CODE_SUCCESS, Message: "ok"},
-	}, nil
+	return safeCreateCoordinator.SafeCreateProxy(c, req)
 }
 
 type CreateProxyConfigWithTypedConfigParam struct {
@@ -77,7 +46,48 @@ type CreateProxyConfigWithTypedConfigParam struct {
 	WorkerID     *string
 }
 
+// CreateProxyConfigWithTypedConfig is the legacy worker-ingress path (used by
+// create_worker_ingress.go). It retains the upstream DB-first + async agent
+// flow. The port-manager CreateProxyConfig handler does NOT use it: it goes
+// through the transaction coordinator (SafeCreateProxy).
+//
+// It is a live legacy writer, so it validates the request, resolves the
+// ORIGIN client id and acquires the (tenant, origin) keyed lock — the SAME
+// originlock.Shared instance SafeCreateProxy holds) — for the WHOLE
+// operation (round-8 I3). Callers that ALREADY hold the lock (worker
+// ingress locks at its own entry, before GetClientWithMakeShadow) MUST
+// call CreateProxyConfigWithTypedConfigLocked instead — the keyed mutex is
+// non-reentrant and this entry would deadlock the same goroutine.
 func CreateProxyConfigWithTypedConfig(c *app.Context, param CreateProxyConfigWithTypedConfigParam) error {
+	// I1-B L2 gate: fires BEFORE validation and before LockLegacyOrigin,
+	// so a blocked master performs no lock and no DB work.
+	if readonly.Blocked() {
+		return readonly.ErrReadOnly
+	}
+	if len(param.ClientID) == 0 || len(param.ServerID) == 0 || param.ClientEntity == nil {
+		return fmt.Errorf("request invalid")
+	}
+
+	_, unlock, err := LockLegacyOrigin(c, param.ClientID)
+	if err != nil {
+		logger.Logger(c).WithError(err).Errorf("cannot resolve origin client, id: [%s]", param.ClientID)
+		return err
+	}
+	defer unlock()
+
+	return CreateProxyConfigWithTypedConfigLocked(c, param)
+}
+
+// CreateProxyConfigWithTypedConfigLocked is the lock-free body of
+// CreateProxyConfigWithTypedConfig. The caller MUST already hold the
+// (tenant, origin) keyed lock for the request's resolved origin (worker
+// ingress holds it across GetClientWithMakeShadow + this call).
+func CreateProxyConfigWithTypedConfigLocked(c *app.Context, param CreateProxyConfigWithTypedConfigParam) error {
+	// I1-B L2 gate: the worker-ingress writer must not run (and must not
+	// cascade into the legacy delete body) while the master is blocked.
+	if readonly.Blocked() {
+		return readonly.ErrReadOnly
+	}
 	var (
 		userInfo      = common.GetUserInfo(c)
 		clientID      = param.ClientID
@@ -88,7 +98,7 @@ func CreateProxyConfigWithTypedConfig(c *app.Context, param CreateProxyConfigWit
 		overwrite     = param.Overwrite
 	)
 
-	proxyCfg := &models.ProxyConfigEntity{}
+	proxyCfg := &models.ProxyConfig{}
 
 	if err := proxyCfg.FillClientConfig(clientEntity); err != nil {
 		logger.Logger(c).WithError(err).Errorf("cannot fill client config, id: [%s]", clientID)
@@ -100,15 +110,23 @@ func CreateProxyConfigWithTypedConfig(c *app.Context, param CreateProxyConfigWit
 		return err
 	}
 
+	// child→origin normalization: proxy rows are keyed by the ORIGIN
+	// client id, so the origin-scoped lookup uses the resolved origin.
+	originID, err := dao.NewQuery(c).GetOriginClientID(userInfo, clientID)
+	if err != nil {
+		logger.Logger(c).WithError(err).Errorf("cannot resolve origin client, id: [%s]", clientID)
+		return err
+	}
+
 	var existedProxyCfg *models.ProxyConfig
-	existedProxyCfg, err = dao.NewQuery(c).GetProxyConfigByOriginClientIDAndName(userInfo, clientID, proxyCfg.Name)
+	existedProxyCfg, err = dao.NewQuery(c).GetProxyConfigByOriginClientIDAndName(userInfo, originID, proxyCfg.Name)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		logger.Logger(c).WithError(err).Errorf("cannot get proxy config, id: [%s]", clientID)
 		return err
 	}
 
 	if !overwrite && err == nil {
-		logger.Logger(c).Errorf("proxy config already exist, cfg: [%+v]", proxyCfg)
+		logger.Logger(c).Errorf("proxy config already exist, name: [%s]", proxyCfg.Name)
 		return fmt.Errorf("proxy config already exist")
 	}
 
@@ -134,7 +152,11 @@ func CreateProxyConfigWithTypedConfig(c *app.Context, param CreateProxyConfigWit
 		return err
 	}
 
-	_, err = client.UpdateFrpcHander(c, &pb.UpdateFRPCRequest{
+	// Locked variant: the caller already holds the (tenant, origin) key;
+	// the locking route entry would deadlock this goroutine on its own key.
+	// A failed/warned agent call MUST surface as an error (round-8 I3:
+	// fire-and-forget SUCCESS let DB/agent drift go silent).
+	_, err = client.UpdateFrpcHanderLocked(c, &pb.UpdateFRPCRequest{
 		ClientId: &clientEntity.ClientID,
 		ServerId: &serverID,
 		Config:   rawCfg,
@@ -142,12 +164,14 @@ func CreateProxyConfigWithTypedConfig(c *app.Context, param CreateProxyConfigWit
 		FrpsUrl:  &clientEntity.FrpsUrl,
 	})
 	if err != nil {
-		logger.Logger(c).WithError(err).Warnf("cannot update frpc failed, id: [%s]", clientID)
+		logger.Logger(c).WithError(err).Errorf("cannot update frpc failed, id: [%s]", clientID)
+		return err
 	}
 
 	if existedProxyCfg != nil && existedProxyCfg.ServerID != serverID {
 		logger.Logger(c).Warnf("client and server not match, delete old proxy, client: [%s], server: [%s], proxy: [%s]", clientID, serverID, proxyCfg.Name)
-		if _, err := DeleteProxyConfig(c, &pb.DeleteProxyConfigRequest{
+		// Locked variant: the caller already holds the key.
+		if _, err := deleteProxyConfigLegacyLocked(c, &pb.DeleteProxyConfigRequest{
 			ClientId: lo.ToPtr(existedProxyCfg.ClientID),
 			ServerId: lo.ToPtr(existedProxyCfg.ServerID),
 			Name:     &proxyCfg.Name,

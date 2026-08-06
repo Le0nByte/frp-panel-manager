@@ -20,6 +20,12 @@ func HandleServerMessage(appInstance app.Application, req *pb.ServerMessage) *pb
 	}()
 	c := context.Background()
 	logger.Logger(c).Infof("client get a server message, clientId: [%s], event: [%s], sessionId: [%s]", req.GetClientId(), req.GetEvent().String(), req.GetSessionId())
+	// S5b feature gate: fail closed before any downstream dispatch while the
+	// event's feature is disabled. Safe events (lifecycle, ping, ports, …)
+	// always pass through — featureGateBlock returns nil for them.
+	if msg := featureGateBlock(appInstance.GetConfig(), req.GetEvent()); msg != nil {
+		return msg
+	}
 	switch req.Event {
 	case pb.Event_EVENT_UPDATE_FRPC:
 		return app.WrapperServerMsg(appInstance, req, UpdateFrpcHander)
@@ -57,6 +63,10 @@ func HandleServerMessage(appInstance app.Application, req *pb.ServerMessage) *pb
 		return app.WrapperServerMsg(appInstance, req, RestartWireGuard)
 	case pb.Event_EVENT_UPGRADE_FRPP:
 		return app.WrapperServerMsg(appInstance, req, UpgradeFrpp)
+	case pb.Event_EVENT_INSPECT_PORTS:
+		return app.WrapperServerMsg(appInstance, req, InspectPortsHandler)
+	case pb.Event_EVENT_VALIDATE_PORT:
+		return app.WrapperServerMsg(appInstance, req, ValidatePortHandler)
 	case pb.Event_EVENT_PING:
 		rawData, _ := proto.Marshal(conf.GetVersion().ToProto())
 		return &pb.ClientMessage{

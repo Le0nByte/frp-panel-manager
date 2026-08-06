@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Test stub for pgrep. Records invocations to $STUB_LOG.
+# STUB_PGREP_OUTPUT lines are printed (simulated PIDs); exit code:
+#   STUB_PGREP_EXIT (default 0 = process found; 1 = not found).
+set -u
+printf 'pgrep %s\n' "$*" >> "${STUB_LOG:?STUB_LOG must be set}"
+printf '%s\n' "${STUB_PGREP_OUTPUT:-}"
+exit "${STUB_PGREP_EXIT:-0}"

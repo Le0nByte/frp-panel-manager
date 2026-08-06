@@ -1,5 +1,8 @@
 export const ROUTES = {
 	home: '/',
+	proxies: '/proxies',
+	ports: '/ports',
+	audit: '/audit',
 	workers: '/workers',
 	workerEdit: '/worker-edit',
 	wg: {
@@ -12,5 +15,3 @@ export const ROUTES = {
 		links: '/wg/links',
 	},
 } as const
-
-

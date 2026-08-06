@@ -51,19 +51,24 @@ func TLSServerCert(certPem, keyPem []byte) (*tls.Config, error) {
 	return config, nil
 }
 
+// TLSClientCert returns gRPC transport credentials that verify the server
+// certificate against caPem (spec §10.5: production must verify).
 func TLSClientCert(caPem []byte) (credentials.TransportCredentials, error) {
-	certpool := x509.NewCertPool()
-	certpool.AppendCertsFromPEM(caPem)
-	return credentials.NewClientTLSFromCert(certpool, ""), nil
+	return TLSClientCertWithSkipVerify(caPem, false)
 }
 
-func TLSClientCertNoValidate(caPem []byte) (credentials.TransportCredentials, error) {
+// TLSClientCertWithSkipVerify returns gRPC transport credentials that verify
+// the server certificate chain against caPem (RootCAs) with a TLS 1.2
+// minimum. When skip is true the certificate is not verified — this is for
+// test environments only; production keeps CLIENT_TLS_INSECURE_SKIP_VERIFY
+// false (spec §10.5).
+func TLSClientCertWithSkipVerify(caPem []byte, skip bool) (credentials.TransportCredentials, error) {
 	certpool := x509.NewCertPool()
 	certpool.AppendCertsFromPEM(caPem)
 
 	config := &tls.Config{
 		RootCAs:            certpool,
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: skip,
 		MinVersion:         tls.VersionTLS12,
 	}
 

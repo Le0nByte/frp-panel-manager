@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Test stub for pkill. Records invocations to $STUB_LOG.
+# STUB_PKILL_EXIT controls the exit code (default 0).
+set -u
+printf 'pkill %s\n' "$*" >> "${STUB_LOG:?STUB_LOG must be set}"
+exit "${STUB_PKILL_EXIT:-0}"

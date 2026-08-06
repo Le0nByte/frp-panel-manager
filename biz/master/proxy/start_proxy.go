@@ -1,100 +1,26 @@
 package proxy
 
 import (
-	"github.com/VaalaCat/frp-panel/biz/master/client"
-	"github.com/VaalaCat/frp-panel/common"
-	"github.com/VaalaCat/frp-panel/models"
+	"github.com/VaalaCat/frp-panel/biz/master/readonly"
+	"github.com/VaalaCat/frp-panel/defs"
 	"github.com/VaalaCat/frp-panel/pb"
 	"github.com/VaalaCat/frp-panel/services/app"
-	"github.com/VaalaCat/frp-panel/services/dao"
-	"github.com/VaalaCat/frp-panel/utils/logger"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
-	"github.com/samber/lo"
 )
 
+// StartProxy is the live /start route entry (handler.go
+// POST /api/v1/proxy/start_proxy). It is a THIN DELEGATE to SafeStartProxy
+// (the B3b transactional coordinator): the handler itself never resolves
+// origins, never acquires locks, never reads or writes the DB and never
+// sends agent RPCs. All of that — canonical-origin resolution, the
+// (tenant, origin) keyed lock, idempotency replay, before-snapshots,
+// branch selection (fast DB-only vs full gates+Apply), apply/verify,
+// commit and compensation — runs inside the coordinator via the
+// package-global safeStartCoordinator.
 func StartProxy(ctx *app.Context, req *pb.StartProxyRequest) (*pb.StartProxyResponse, error) {
-
-	var (
-		userInfo  = common.GetUserInfo(ctx)
-		clientID  = req.GetClientId()
-		serverID  = req.GetServerId()
-		proxyName = req.GetName()
-	)
-
-	clientEntity, err := GetClientWithMakeShadow(ctx, clientID, serverID)
-	if err != nil {
-		logger.Logger(ctx).WithError(err).Errorf("cannot get client, id: [%s]", clientID)
-		return nil, err
+	// I1-B L2 gate: a blocked master answers READ_ONLY here — the
+	// coordinator (lock, DB, snapshots, agent RPC) is never reached.
+	if readonly.Blocked() {
+		return invalidStartResp(defs.ErrorCodeReadOnly, readonly.ErrReadOnly.Error()), nil
 	}
-
-	_, err = dao.NewQuery(ctx).GetServerByServerID(userInfo, serverID)
-	if err != nil {
-		logger.Logger(ctx).WithError(err).Errorf("cannot get server, id: [%s]", serverID)
-		return nil, err
-	}
-
-	proxyConfig, err := dao.NewQuery(ctx).GetProxyConfigByFilter(userInfo, &models.ProxyConfigEntity{
-		ClientID: clientID,
-		ServerID: serverID,
-		Name:     proxyName,
-	})
-	if err != nil {
-		logger.Logger(ctx).WithError(err).Errorf("cannot get proxy config, client: [%s], server: [%s], proxy name: [%s]", clientID, serverID, proxyName)
-		return nil, err
-	}
-
-	// 1. 更新proxy状态
-	proxyConfig.Stopped = false
-	err = dao.NewMutation(ctx).UpdateProxyConfig(userInfo, proxyConfig)
-	if err != nil {
-		logger.Logger(ctx).WithError(err).Errorf("cannot update proxy config, client: [%s], server: [%s], proxy name: [%s]", clientID, serverID, proxyName)
-		return nil, err
-	}
-
-	typedProxyConfig, err := proxyConfig.GetTypedProxyConfig()
-	if err != nil {
-		logger.Logger(ctx).WithError(err).Errorf("cannot get typed proxy config, client: [%s], server: [%s], proxy name: [%s]", clientID, serverID, proxyName)
-		return nil, err
-	}
-
-	// 2. 添加 proxy到client
-	if oldCfg, err := clientEntity.GetConfigContent(); err != nil {
-		logger.Logger(ctx).WithError(err).Errorf("cannot get client config, id: [%s]", clientID)
-		return nil, err
-	} else {
-		oldCfg.Proxies = lo.Filter(oldCfg.Proxies, func(proxy v1.TypedProxyConfig, _ int) bool {
-			return proxy.GetBaseConfig().Name != proxyName
-		})
-		oldCfg.Proxies = append(oldCfg.Proxies, typedProxyConfig)
-
-		if err := clientEntity.SetConfigContent(*oldCfg); err != nil {
-			logger.Logger(ctx).WithError(err).Errorf("cannot set client config, id: [%s]", clientID)
-			return nil, err
-		}
-	}
-
-	// 3. 更新client的配置
-	rawCfg, err := clientEntity.MarshalJSONConfig()
-	if err != nil {
-		logger.Logger(ctx).WithError(err).Errorf("cannot marshal client config, id: [%s]", clientID)
-		return nil, err
-	}
-
-	_, err = client.UpdateFrpcHander(ctx, &pb.UpdateFRPCRequest{
-		ClientId: &clientEntity.ClientID,
-		ServerId: &serverID,
-		Config:   rawCfg,
-		Comment:  &clientEntity.Comment,
-		FrpsUrl:  &clientEntity.FrpsUrl,
-	})
-	if err != nil {
-		logger.Logger(ctx).WithError(err).Warnf("cannot update frpc, id: [%s]", clientID)
-	}
-
-	return &pb.StartProxyResponse{
-		Status: &pb.Status{
-			Code:    pb.RespCode_RESP_CODE_SUCCESS,
-			Message: "start proxy success",
-		},
-	}, nil
+	return SafeStartProxy(ctx, req)
 }

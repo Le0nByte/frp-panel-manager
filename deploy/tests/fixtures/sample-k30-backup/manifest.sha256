@@ -1,0 +1,5 @@
+# frp-panel sample k30 backup manifest (offline fixture)
+4dbd1c83387f0ba9cf1947e1c336a669312164653823c7fb9e9395d5194325e6 *manifest.meta
+3cc0db17d9bc841b42fed752ebb5afe1fe2f3875e92f33cdacd763c276d08b0e *frpc
+a99a37be2f6c9ddbc80d02fb95f6ffb3ebb1ec8a976ba7c1436e0baa4bc23216 *frpc.toml
+da186d7e9b177a647e4b34620e13e1daa9e695fd1d07c519eaeac28e5579f8e5 *frpc.sh

@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package api_audit;
+import "common.proto";
+option go_package = "../pb";
+
+message ListAuditRequest {
+  optional int32 page = 1;
+  optional int32 page_size = 2;
+  optional string transaction_id = 3;
+}
+
+message ListAuditResponse {
+  optional common.Status status = 1;
+  repeated common.AuditEvent events = 2;
+  optional int32 total = 3;
+}
+
+message GetAuditRequest {
+  optional string transaction_id = 1;
+}
+
+message GetAuditResponse {
+  optional common.Status status = 1;
+  optional common.AuditEvent event = 2;
+  optional bytes evidence_json = 3;
+  repeated SnapshotMetadata snapshots = 4;
+}
+
+// SnapshotMetadata is the reversible-change evidence of one config snapshot:
+// identity and digest only — ciphertext and nonce are NEVER exposed on the
+// wire (spec §6.3 encrypted snapshots stay server-side).
+message SnapshotMetadata {
+  optional string side = 1;       // before / after
+  optional string node_type = 2;  // client / server / proxy
+  optional string node_id = 3;
+  optional string sha256 = 4;
+  optional int64 created_at = 5;
+}
+
+message RollbackRequest {
+  optional string transaction_id = 1;
+  // idempotency_key makes rollback retry-safe: a network retry must never
+  // roll back twice (spec §7.3, mirrors create/update/delete/start/stop).
+  optional string idempotency_key = 2;
+}
+
+message RollbackResponse {
+  optional common.Status status = 1;
+  optional string new_transaction_id = 2;
+  // error_code carries the stable structured failure code (spec §7.3).
+  optional string error_code = 3;
+}

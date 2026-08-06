@@ -6,6 +6,7 @@ import (
 	"github.com/VaalaCat/frp-panel/services/app"
 	"github.com/VaalaCat/frp-panel/services/dao"
 	"github.com/VaalaCat/frp-panel/services/rpc"
+	"github.com/VaalaCat/frp-panel/utils"
 	"github.com/VaalaCat/frp-panel/utils/logger"
 )
 
@@ -14,7 +15,8 @@ func InstallWorkerd(ctx *app.Context, req *pb.InstallWorkerdRequest) (*pb.Instal
 		userInfo = common.GetUserInfo(ctx)
 		clientId = req.GetClientId()
 	)
-	logger.Logger(ctx).Infof("installw orkerd called with userInfo: %v, clientId: %s", userInfo, clientId)
+	// S5b: never render Password/Token — only the safe projection is logged.
+	logger.Logger(ctx).Infof("installw orkerd called with userInfo: %s, clientId: %s", utils.MarshalForJson(userInfo.GetSafeUserInfo()), clientId)
 
 	_, err := dao.NewQuery(ctx).GetClientByClientID(userInfo, clientId)
 	if err != nil {

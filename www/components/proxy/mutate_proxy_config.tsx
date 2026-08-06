@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,15 @@ import { ClientSelector } from '../base/client-selector'
 import { TypedProxyForm } from '../frpc/proxy_form'
 import { ProxyType, TypedProxyConfig } from '@/types/proxy'
 import { BaseSelector } from '../base/selector'
+import {
+  SUPPORTED_PROXY_TYPES,
+  canPreflightCandidate,
+  extractPreflightCandidate,
+} from '@/lib/preflight-gate'
 import { createProxyConfig } from '@/api/proxy'
+import { preflight } from '@/api/port'
+import { PreflightResponse } from '@/lib/pb/api_port'
+import { PortObservation, PortState } from '@/lib/pb/types_port'
 import { ClientConfig } from '@/types/client'
 import { ObjToUint8Array } from '@/lib/utils'
 import { VisitPreview } from '../base/visit-preview'
@@ -29,6 +38,8 @@ import { toast } from 'sonner'
 import { $proxyTableRefetchTrigger } from '@/store/refetch-trigger'
 import { Switch } from '../ui/switch'
 import { Textarea } from '../ui/textarea'
+import { CheckCircle2, XCircle, Search, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export type ProxyConfigMutateDialogProps = {
   overwrite?: boolean
@@ -59,6 +70,75 @@ export const ProxyConfigMutateDialog = ({ ...props }: ProxyConfigMutateDialogPro
   )
 }
 
+// The candidate fields the dual-side preflight can reason about. Only single
+// tcp/udp rules are gateable (see lib/preflight-gate.ts); http/https and
+// multi-rule configs are rejected there so no mode can bypass the gate.
+
+type PreflightState = {
+  sig: string
+  status: 'loading' | 'success' | 'error'
+  data?: PreflightResponse
+  error?: string
+}
+
+const stateLabel = (state: PortState): string => {
+  switch (state) {
+    case PortState.STATE_AVAILABLE:
+      return 'port.state.available'
+    case PortState.STATE_LISTENING:
+      return 'port.state.listening'
+    case PortState.STATE_ACTIVE:
+      return 'port.state.active'
+    case PortState.STATE_CONFLICT:
+      return 'port.state.conflict'
+    case PortState.STATE_UNKNOWN:
+      return 'port.state.unknown'
+    default:
+      return 'port.state.unspecified'
+  }
+}
+
+const CheckSidePanel = ({
+  title,
+  ok,
+  checks,
+  t,
+}: {
+  title: string
+  ok: boolean
+  checks: PortObservation[]
+  t: (key: string) => string
+}) => (
+  <div
+    className={cn(
+      'flex-1 rounded-md border p-2',
+      ok ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50',
+    )}
+  >
+    <div className="flex items-center gap-1.5 text-sm font-medium">
+      {ok ? (
+        <CheckCircle2 className="h-4 w-4 text-green-600" />
+      ) : (
+        <XCircle className="h-4 w-4 text-red-600" />
+      )}
+      {title}
+      <Badge variant={ok ? 'default' : 'destructive'} className="ml-auto">
+        {ok ? t('proxy.config.preflight_ok') : t('proxy.config.preflight_fail')}
+      </Badge>
+    </div>
+    {checks.length === 0 && (
+      <div className="mt-1 text-xs text-muted-foreground">{t('proxy.config.preflight_no_evidence')}</div>
+    )}
+    {checks.map((o, i) => (
+      <div key={i} className="mt-1 font-mono text-xs break-all">
+        {o.protocol}/{o.localPort} · {o.localAddress} · {t(stateLabel(o.state))}
+        {o.processName ? ` · ${o.processName}` : ''}
+        {o.frpProxyName ? ` · ${o.frpProxyName}` : ''}
+      </div>
+    ))}
+  </div>
+)
+
 export const ProxyConfigMutateForm = ({
   overwrite,
   defaultProxyConfig,
@@ -71,12 +151,19 @@ export const ProxyConfigMutateForm = ({
   const [newServerID, setNewServerID] = useState<string | undefined>()
   const [proxyConfigs, setProxyConfigs] = useState<TypedProxyConfig[]>([])
   const [proxyName, setProxyName] = useState<string | undefined>('')
-  const [proxyType, setProxyType] = useState<ProxyType>('http')
+  const [proxyType, setProxyType] = useState<ProxyType>('tcp')
   const [selectedServer, setSelectedServer] = useState<Server | undefined>()
-  const supportedProxyTypes: ProxyType[] = ['http', 'tcp', 'udp']
+  // First-version safe support: only tcp/udp can pass the dual-side preflight
+  // gate. http/https have no single remotePort to check (C1: never substitute
+  // localPort for the public remotePort) and stay out of the gated flow.
+  const supportedProxyTypes: ProxyType[] = [...SUPPORTED_PROXY_TYPES]
   // advanced mode toggle
   const [advancedMode, setAdvancedMode] = useState<boolean>(false)
   const [rawConfig, setRawConfig] = useState<string>('{}')
+  // dual-side preflight gate (spec §9.4): only a fresh, passing preflight of
+  // the exact current candidate may unlock submit. The backend re-validates on
+  // commit — this UI gate never substitutes for the server-side check.
+  const [preflightState, setPreflightState] = useState<PreflightState | null>(null)
 
   const createProxyConfigMutation = useMutation({
     mutationKey: ['createProxyConfig', newClientID, newServerID],
@@ -124,6 +211,72 @@ export const ProxyConfigMutateForm = ({
       setRawConfig(JSON.stringify([defaultProxyConfig], null, 2))
     }
   }, [defaultProxyConfig, defaultOriginalProxyConfig])
+
+  const cand = useMemo(() => extractPreflightCandidate(proxyConfigs), [proxyConfigs])
+
+  // Any change to server/client/name/ports must invalidate a previous
+  // preflight — evidence for an older candidate must never unlock submit.
+  const candidateSig = useMemo(
+    () =>
+      JSON.stringify({
+        clientId: newClientID,
+        serverId: newServerID,
+        name: cand?.name,
+        type: cand?.type,
+        remotePort: cand?.remotePort,
+        localIp: cand?.localIP,
+        localPort: cand?.localPort,
+      }),
+    [newClientID, newServerID, cand],
+  )
+
+  useEffect(() => {
+    setPreflightState(null)
+  }, [candidateSig])
+
+  // §9.4 gate (UI half): single tcp/udp candidate, integer ports in 1..65535,
+  // client & server selected. Same gate in both normal and advanced mode.
+  const canPreflight = canPreflightCandidate(cand, !!newClientID, !!newServerID)
+
+  const preflightMutation = useMutation({
+    mutationKey: ['preflight', candidateSig],
+    mutationFn: () => {
+      if (!cand || !newClientID || !newServerID) {
+        throw new Error('missing candidate')
+      }
+      return preflight({
+        clientId: newClientID,
+        serverId: newServerID,
+        // tcp/udp only (http/https never reach here): the public remotePort is
+        // always a real, user-entered value — never localPort in disguise.
+        proxyType: cand.type,
+        protocol: cand.type,
+        remotePort: cand.remotePort,
+        localIp: cand.localIP,
+        localPort: cand.localPort,
+        proxyName: overwrite === true ? cand.name : undefined,
+      })
+    },
+    onSuccess: (data) => {
+      setPreflightState({ sig: candidateSig, status: 'success', data })
+    },
+    onError: (e) => {
+      setPreflightState({ sig: candidateSig, status: 'error', error: String(e) })
+    },
+  })
+
+  // Both ends must be green on a preflight of the exact current candidate.
+  const preflightGatePassed =
+    preflightState?.status === 'success' &&
+    preflightState.sig === candidateSig &&
+    preflightState.data?.serverOk === true &&
+    preflightState.data?.clientOk === true
+
+  // Submit NEVER bypasses the gate: advanced mode used to enable submit with
+  // only `proxyConfigs.length > 0`, which skipped the dual-side preflight
+  // (§9.4). A fresh, passing preflight of the exact candidate is mandatory in
+  // both modes; the backend re-validates on commit regardless.
+  const submitDisabled = !preflightGatePassed
 
   return (
     <>
@@ -199,18 +352,107 @@ export const ProxyConfigMutateForm = ({
           </Button>
         </>
       )}
+
+      {/* Dual-side preflight gate — visible in BOTH normal and advanced mode.
+          Advanced multi-rule / http(s) configs fail extractPreflightCandidate,
+          so canPreflight stays false and submit stays locked with the hint
+          below (spec §9.4: submit only unlocks when both sides pass). */}
+      <div className="flex flex-col gap-2 my-2 rounded-md border p-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">{t('proxy.config.preflight_title')}</Label>
+          <Button
+            variant="outline"
+            className="h-8 gap-1.5 text-sm"
+            disabled={!canPreflight || preflightMutation.isPending}
+            onClick={() => preflightMutation.mutate()}
+          >
+            {preflightMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+            {preflightMutation.isPending
+              ? t('proxy.config.preflight_pending')
+              : t('proxy.config.preflight_check')}
+          </Button>
+        </div>
+
+        {!canPreflight && (
+          <p className="text-xs text-muted-foreground">
+            {advancedMode && (!cand || proxyConfigs.length !== 1)
+              ? t('proxy.config.preflight_advanced_unsupported')
+              : t('proxy.config.preflight_hint')}
+          </p>
+        )}
+
+        {preflightState?.status === 'error' && (
+          <p className="text-xs text-destructive break-all">
+            {t('proxy.config.preflight_failed')}: {preflightState.error}
+          </p>
+        )}
+
+        {preflightState?.status === 'success' && preflightState.sig === candidateSig && (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <CheckSidePanel
+                title={t('proxy.config.preflight_server')}
+                ok={preflightState.data?.serverOk === true}
+                checks={preflightState.data?.serverChecks ?? []}
+                t={t}
+              />
+              <CheckSidePanel
+                title={t('proxy.config.preflight_client')}
+                ok={preflightState.data?.clientOk === true}
+                checks={preflightState.data?.clientChecks ?? []}
+                t={t}
+              />
+            </div>
+            {(!preflightState.data?.serverOk || !preflightState.data?.clientOk) &&
+              (preflightState.data?.errorCode || preflightState.data?.errorMessage) && (
+                <p className="text-xs text-destructive break-all">
+                  {preflightState.data.errorCode}
+                  {preflightState.data.errorMessage
+                    ? `: ${preflightState.data.errorMessage}`
+                    : ''}
+                </p>
+              )}
+            {preflightState.data?.serverOk === true &&
+              preflightState.data?.clientOk === true && (
+                <p className="text-xs text-green-600">{t('proxy.config.preflight_all_ok')}</p>
+              )}
+          </div>
+        )}
+      </div>
       <Button
-        disabled={advancedMode ? proxyConfigs.length === 0 : !TypedProxyConfigValid(proxyConfigs[0])}
+        disabled={submitDisabled || preflightMutation.isPending}
         onClick={() => {
-          if (!TypedProxyConfigValid(proxyConfigs[0])) {
-            toast(t('proxy.config.invalid_config'))
+          if (advancedMode) {
+            if (proxyConfigs.length === 0) {
+              toast(t('proxy.config.invalid_config'))
+              return
+            }
+          } else {
+            if (!TypedProxyConfigValid(proxyConfigs[0])) {
+              toast(t('proxy.config.invalid_config'))
+              return
+            }
+          }
+          // Defense in depth: the button is disabled, but a gate check here
+          // guarantees no path submits without a passing preflight.
+          if (!preflightGatePassed) {
+            toast(t('proxy.config.preflight_required'))
             return
           }
           createProxyConfigMutation.mutate()
         }}
       >
-        {t('proxy.config.submit')}
+        {preflightMutation.isPending
+          ? t('proxy.config.submit_pending')
+          : t('proxy.config.submit')}
       </Button>
+      {!preflightGatePassed && (
+        <p className="text-xs text-muted-foreground">{t('proxy.config.preflight_required')}</p>
+      )}
     </>
   )
 }

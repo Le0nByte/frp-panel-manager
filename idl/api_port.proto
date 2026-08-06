@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package api_port;
+import "common.proto";
+import "types_port.proto";
+option go_package = "../pb";
+
+// ListPortsRequest queries one node's port observations. All filters are
+// optional; empty means "everything visible".
+message ListPortsRequest {
+  optional string node_id = 1;
+  optional string protocol = 2; // tcp / udp / ""
+  optional uint32 port_min = 3;
+  optional uint32 port_max = 4;
+}
+
+message ListPortsResponse {
+  optional common.Status status = 1;
+  repeated types_port.PortObservation observations = 2;
+}
+
+// PreflightRequest describes the candidate rule for a two-sided check. The
+// full candidate TOML may be supplied in config; explicit fields override
+// values parsed from it.
+message PreflightRequest {
+  optional string client_id = 1;
+  optional string server_id = 2;
+  optional string proxy_type = 3;
+  optional bytes config = 4;
+  // explicit overrides (used when the UI checks ports before a full config
+  // exists)
+  optional string protocol = 5;        // tcp / udp
+  optional uint32 remote_port = 6;     // public port on the server
+  optional string local_ip = 7;        // target address on the client
+  optional uint32 local_port = 8;      // target port on the client
+  optional string proxy_name = 9;      // existing rule name (edit mode)
+}
+
+message PreflightResponse {
+  optional common.Status status = 1;
+  repeated types_port.PortObservation server_checks = 2;
+  repeated types_port.PortObservation client_checks = 3;
+  optional bool server_ok = 4;
+  optional bool client_ok = 5;
+  optional string error_code = 6;
+  optional string error_message = 7;
+}
+
+// InspectPortsRequest is the agent-side RPC payload (spec §4.2).
+message InspectPortsRequest {
+  optional string client_id = 1;
+  optional string server_id = 2;
+  optional string protocol = 3;
+  optional uint32 port_min = 4;
+  optional uint32 port_max = 5;
+  optional bool include_docker = 6;
+}
+
+message InspectPortsResponse {
+  optional common.Status status = 1;
+  repeated types_port.PortObservation observations = 2;
+}
+
+// ValidatePortRequest asks an agent to validate a single port and return
+// verifiable evidence (spec §4.2 EVENT_VALIDATE_PORT).
+message ValidatePortRequest {
+  optional string node_id = 1;
+  optional string protocol = 2;      // tcp / udp
+  optional uint32 port = 3;
+  optional string local_address = 4; // bind address to probe ("" = 0.0.0.0)
+  optional bool bind_probe = 5;      // perform a transient net.Listen probe
+  optional bool include_docker = 6;
+}
+
+message ValidatePortResponse {
+  optional common.Status status = 1;
+  optional types_port.PortObservation observation = 2;
+  optional bool ok = 3;
+  optional string error_code = 4;
+  optional string error_message = 5;
+}

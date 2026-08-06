@@ -46,6 +46,62 @@ export interface CommonResponse {
     data?: string;
 }
 /**
+ * AuditEvent is a redacted audit record returned to the UI (spec §7.1).
+ *
+ * @generated from protobuf message common.AuditEvent
+ */
+export interface AuditEvent {
+    /**
+     * @generated from protobuf field: optional string transaction_id = 1;
+     */
+    transactionId?: string;
+    /**
+     * @generated from protobuf field: optional string event_type = 2;
+     */
+    eventType?: string;
+    /**
+     * @generated from protobuf field: optional string summary = 3;
+     */
+    summary?: string;
+    /**
+     * @generated from protobuf field: optional string node_id = 4;
+     */
+    nodeId?: string;
+    /**
+     * @generated from protobuf field: optional bool success = 5;
+     */
+    success?: boolean;
+    /**
+     * @generated from protobuf field: optional int64 created_at = 6;
+     */
+    createdAt?: bigint;
+    /**
+     * @generated from protobuf field: optional string error_code = 7;
+     */
+    errorCode?: string;
+    /**
+     * @generated from protobuf field: optional string evidence_ref = 8;
+     */
+    evidenceRef?: string;
+    /**
+     * operation/status/proxy_id are the ChangeTransaction details surfaced by
+     * the audit detail view (spec §7.1 GET /audit): the owning transaction's
+     * operation (create/update/delete/start/stop/rollback), its lifecycle
+     * status, and the affected proxy_config row id when one exists.
+     *
+     * @generated from protobuf field: optional string operation = 9;
+     */
+    operation?: string;
+    /**
+     * @generated from protobuf field: optional string status = 10;
+     */
+    status?: string;
+    /**
+     * @generated from protobuf field: optional int64 proxy_id = 11;
+     */
+    proxyId?: bigint;
+}
+/**
  * @generated from protobuf message common.Client
  */
 export interface Client {
@@ -532,6 +588,122 @@ class CommonResponse$Type extends MessageType<CommonResponse> {
  * @generated MessageType for protobuf message common.CommonResponse
  */
 export const CommonResponse = new CommonResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class AuditEvent$Type extends MessageType<AuditEvent> {
+    constructor() {
+        super("common.AuditEvent", [
+            { no: 1, name: "transaction_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "event_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "summary", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "node_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "success", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 6, name: "created_at", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 7, name: "error_code", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 8, name: "evidence_ref", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 9, name: "operation", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 10, name: "status", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 11, name: "proxy_id", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<AuditEvent>): AuditEvent {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<AuditEvent>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AuditEvent): AuditEvent {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional string transaction_id */ 1:
+                    message.transactionId = reader.string();
+                    break;
+                case /* optional string event_type */ 2:
+                    message.eventType = reader.string();
+                    break;
+                case /* optional string summary */ 3:
+                    message.summary = reader.string();
+                    break;
+                case /* optional string node_id */ 4:
+                    message.nodeId = reader.string();
+                    break;
+                case /* optional bool success */ 5:
+                    message.success = reader.bool();
+                    break;
+                case /* optional int64 created_at */ 6:
+                    message.createdAt = reader.int64().toBigInt();
+                    break;
+                case /* optional string error_code */ 7:
+                    message.errorCode = reader.string();
+                    break;
+                case /* optional string evidence_ref */ 8:
+                    message.evidenceRef = reader.string();
+                    break;
+                case /* optional string operation */ 9:
+                    message.operation = reader.string();
+                    break;
+                case /* optional string status */ 10:
+                    message.status = reader.string();
+                    break;
+                case /* optional int64 proxy_id */ 11:
+                    message.proxyId = reader.int64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: AuditEvent, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional string transaction_id = 1; */
+        if (message.transactionId !== undefined)
+            writer.tag(1, WireType.LengthDelimited).string(message.transactionId);
+        /* optional string event_type = 2; */
+        if (message.eventType !== undefined)
+            writer.tag(2, WireType.LengthDelimited).string(message.eventType);
+        /* optional string summary = 3; */
+        if (message.summary !== undefined)
+            writer.tag(3, WireType.LengthDelimited).string(message.summary);
+        /* optional string node_id = 4; */
+        if (message.nodeId !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.nodeId);
+        /* optional bool success = 5; */
+        if (message.success !== undefined)
+            writer.tag(5, WireType.Varint).bool(message.success);
+        /* optional int64 created_at = 6; */
+        if (message.createdAt !== undefined)
+            writer.tag(6, WireType.Varint).int64(message.createdAt);
+        /* optional string error_code = 7; */
+        if (message.errorCode !== undefined)
+            writer.tag(7, WireType.LengthDelimited).string(message.errorCode);
+        /* optional string evidence_ref = 8; */
+        if (message.evidenceRef !== undefined)
+            writer.tag(8, WireType.LengthDelimited).string(message.evidenceRef);
+        /* optional string operation = 9; */
+        if (message.operation !== undefined)
+            writer.tag(9, WireType.LengthDelimited).string(message.operation);
+        /* optional string status = 10; */
+        if (message.status !== undefined)
+            writer.tag(10, WireType.LengthDelimited).string(message.status);
+        /* optional int64 proxy_id = 11; */
+        if (message.proxyId !== undefined)
+            writer.tag(11, WireType.Varint).int64(message.proxyId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message common.AuditEvent
+ */
+export const AuditEvent = new AuditEvent$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Client$Type extends MessageType<Client> {
     constructor() {
