@@ -23,6 +23,7 @@ import { IsIDValid } from '@/lib/consts'
 
 export const CreateClientDialog = ({refetchTrigger}: {refetchTrigger?: (randStr: string) => void}) => {
   const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
   const [clientID, setClientID] = useState<string | undefined>()
   const newClient = useMutation({
     mutationFn: initClient,
@@ -39,6 +40,8 @@ export const CreateClientDialog = ({refetchTrigger}: {refetchTrigger?: (randStr:
         return
       }
       toast(t('client.create.success'))
+      setClientID('')
+      setOpen(false)
       refetchTrigger && refetchTrigger(JSON.stringify(Math.random()))
     } catch (error) {
       toast(t('client.create.error'), {
@@ -48,7 +51,10 @@ export const CreateClientDialog = ({refetchTrigger}: {refetchTrigger?: (randStr:
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={(v) => {
+      setOpen(v)
+      if (v) setClientID('')
+    }}>
       <DialogTrigger asChild>
         <Button variant="outline">
           {t('client.create.button')}
