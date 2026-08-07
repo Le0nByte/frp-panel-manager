@@ -7,6 +7,7 @@ import (
 	"github.com/VaalaCat/frp-panel/biz/master/audit"
 	"github.com/VaalaCat/frp-panel/biz/master/auth"
 	"github.com/VaalaCat/frp-panel/biz/master/client"
+	"github.com/VaalaCat/frp-panel/biz/master/firewall"
 	"github.com/VaalaCat/frp-panel/biz/master/platform"
 	"github.com/VaalaCat/frp-panel/biz/master/port"
 	"github.com/VaalaCat/frp-panel/biz/master/proxy"
@@ -60,6 +61,12 @@ func ConfigureRouter(appInstance app.Application, router *gin.Engine) {
 		{
 			platformRouter.GET("/baseinfo", platform.GetPlatformInfo(appInstance))
 			platformRouter.POST("/clientsstatus", app.Wrapper(appInstance, platform.GetClientsStatus))
+		}
+		firewallRouter := v1.Group("/firewall")
+		{
+			// 2026-08-07: open a firewalld port when a tunnel is created
+			// (control-plane write; gated by RequireWritable).
+			firewallRouter.POST("/open", middleware.RequireWritable(), firewall.OpenFirewallPortHandler(appInstance))
 		}
 		clientRouter := v1.Group("/client")
 		{

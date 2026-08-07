@@ -712,7 +712,11 @@
     "stats": {
       "label": "Nom du Tunnel",
       "tunnel_traffic": "Tunnel : {{name}}"
-    }
+    },
+    "config.open_firewall": "Ouvrir le port du pare-feu (firewalld)",
+    "config.open_firewall_desc": "Ouvre le port public automatiquement après la création",
+    "config.firewall_opened": "Port du pare-feu ouvert",
+    "config.firewall_failed": "Tunnel créé, mais le port du pare-feu n’a pas été ouvert"
   },
   "server": {
     "configuration": "Configuration du Serveur",
@@ -809,7 +813,16 @@
     "status_offline": "Hors Ligne",
     "status_error": "Erreur",
     "status_unknown": "Inconnu",
-    "status_pause": "En Pause"
+    "status_pause": "En Pause",
+    "form.port_quota_title": "Quota de ports",
+    "form.max_ports_per_client": "Ports max par client",
+    "form.max_ports_per_client_hint": "Tunnels max qu’un client peut créer, 1-65535",
+    "form.allow_ports": "Ports autorisés (allowPorts)",
+    "form.allow_ports_hint": "Port unique (ex. 5700) ou plage (ex. 10000-20000) ; vide = illimité",
+    "form.allow_ports_empty": "Aucune liste blanche (illimité)",
+    "form.add_single_port": "Ajouter un port",
+    "form.add_port_range": "Ajouter une plage",
+    "form.port_rule_invalid": "Règle de port invalide"
   },
   "auth": {
     "loggingIn": "Connexion en cours, veuillez patienter",

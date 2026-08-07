@@ -35,6 +35,10 @@ const (
 	// rollback path (D2c-C); the constant is part of the D2c-B contract
 	// so the rollback coordinator can reference it without string literals.
 	AuditEventTypeRollback = "rollback"
+	// AuditEventTypeFirewall is written by the firewalld open-port API
+	// (2026-08-07 design: port quota + firewall linkage). The summary
+	// carries server_id/port/protocol only — never command output.
+	AuditEventTypeFirewall = "firewall"
 	// AuditEventTypeResetPassword is written by the local-only admin
 	// reset-password command (spec §10.7.8). The summary is a fixed
 	// marker-free constant; the row never carries a password or token.

@@ -26,6 +26,7 @@ import {
   extractPreflightCandidate,
 } from '@/lib/preflight-gate'
 import { createProxyConfig } from '@/api/proxy'
+import { openFirewallPort } from '@/api/firewall'
 import { preflight } from '@/api/port'
 import { PreflightResponse } from '@/lib/pb/api_port'
 import { PortObservation, PortState } from '@/lib/pb/types_port'
@@ -164,6 +165,10 @@ export const ProxyConfigMutateForm = ({
   // the exact current candidate may unlock submit. The backend re-validates on
   // commit — this UI gate never substitutes for the server-side check.
   const [preflightState, setPreflightState] = useState<PreflightState | null>(null)
+  // 2026-08-07: after a successful create, optionally open the server's
+  // firewalld port so the tunnel is immediately reachable from the public
+  // internet (default ON per user decision).
+  const [openFirewall, setOpenFirewall] = useState<boolean>(true)
 
   const createProxyConfigMutation = useMutation({
     mutationKey: ['createProxyConfig', newClientID, newServerID],
@@ -178,6 +183,29 @@ export const ProxyConfigMutateForm = ({
       }),
     onSuccess: () => {
       toast(t('proxy.config.create_success'))
+      if (openFirewall && cand && newServerID && cand.remotePort) {
+        openFirewallPort({
+          server_id: newServerID,
+          port: cand.remotePort,
+          protocol: cand.type,
+        })
+          .then((resp) => {
+            if (resp.code === 200) {
+              toast(t('proxy.config.firewall_opened'), {
+                description: `${cand.remotePort}/${cand.type}`,
+              })
+            } else {
+              toast(t('proxy.config.firewall_failed'), {
+                description: resp.msg,
+              })
+            }
+          })
+          .catch((e) => {
+            toast(t('proxy.config.firewall_failed'), {
+              description: String(e),
+            })
+          })
+      }
       $proxyTableRefetchTrigger.set(Math.random())
       onSuccess?.()
     },
@@ -434,6 +462,17 @@ export const ProxyConfigMutateForm = ({
               !preflightState.data?.errorCode && (
                 <p className="text-xs text-green-600">{t('proxy.config.preflight_all_ok')}</p>
               )}
+          </div>
+        )}
+        {/* 2026-08-07: open the server firewalld port after creation
+            (only meaningful for a single tcp/udp rule that passed preflight). */}
+        {canPreflight && (
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm">{t('proxy.config.open_firewall')}</Label>
+              <p className="text-xs text-muted-foreground">{t('proxy.config.open_firewall_desc')}</p>
+            </div>
+            <Switch checked={openFirewall} onCheckedChange={setOpenFirewall} />
           </div>
         )}
       </div>
