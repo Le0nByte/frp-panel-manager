@@ -237,7 +237,7 @@ assert_true "stop before start (stop=$stop_line start=$start_line)" test "$stop_
 assert_true "stop line present" test -n "$stop_line"
 new_fs
 fresh_log
-run_capture env PATH="$STUBS_NOSQL:$ORIG_PATH" bash "$root/deploy/backup-aliyun.sh" --fs-root "$FS" --out "$ODIR/a2b"
+run_capture env FRP_PANEL_SQLITE3_BIN=__frp_panel_missing_sqlite3__ PATH="$STUBS_NOSQL:$ORIG_PATH" bash "$root/deploy/backup-aliyun.sh" --fs-root "$FS" --out "$ODIR/a2b"
 assert_eq "no-sqlite3 fallback rc" 0 "$RC"
 assert_grep "no-sqlite3 -> systemctl stop" "systemctl stop frp-panel.service" "$STUB_LOG"
 assert_file "no-sqlite3 wal copied" "$ODIR/a2b/data.db-wal"

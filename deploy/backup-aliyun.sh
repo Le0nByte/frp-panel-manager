@@ -141,12 +141,16 @@ backup_file "$frps_src" frps "$frps_target" || die "failed to back up $frps_targ
 
 # ---- database ----------------------------------------------------------------
 db_backed_up=0
-if (( ! FORCE_STOP )) && command -v sqlite3 >/dev/null 2>&1; then
+# The override makes the sqlite3-absent fallback deterministic in tests even
+# on runners that preinstall sqlite3. Production keeps using the normal
+# `sqlite3` command unless explicitly overridden.
+SQLITE3_BIN="${FRP_PANEL_SQLITE3_BIN:-sqlite3}"
+if (( ! FORCE_STOP )) && command -v "$SQLITE3_BIN" >/dev/null 2>&1; then
   # Online consistent snapshot; wal/shm are NOT copied (spec 12.1).
   if (( ! DRY_RUN )) && [[ ! -e "$db_src" ]]; then
     die "required file missing: $PANEL_DB"
   fi
-  dry_or_run sqlite3 "$db_src" ".backup '$OUT_DIR/data.db'" || die "sqlite3 .backup failed for $PANEL_DB"
+  dry_or_run "$SQLITE3_BIN" "$db_src" ".backup '$OUT_DIR/data.db'" || die "sqlite3 .backup failed for $PANEL_DB"
   dry_or_run chmod "$(stat_mode "$db_src")" "$OUT_DIR/data.db"
   record_backup data.db "$PANEL_DB" "$(stat_mode "$db_src")" "$(stat_uid "$db_src"):$(stat_gid "$db_src")"
   db_backed_up=1
