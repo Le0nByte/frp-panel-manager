@@ -1035,7 +1035,8 @@
     "workers": "Functions",
     "overview": "Overview",
     "ports": "Port Center",
-    "audit": "Audit & Rollback"
+    "audit": "Audit & Rollback",
+    "guide": "User Guide"
   },
   "frpc_form": {
     "add": "Add Client",

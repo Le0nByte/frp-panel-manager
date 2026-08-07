@@ -1,5 +1,6 @@
 export const ROUTES = {
 	home: '/',
+	guide: '/guide',
 	proxies: '/proxies',
 	ports: '/ports',
 	audit: '/audit',

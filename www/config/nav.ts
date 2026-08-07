@@ -6,6 +6,7 @@ import {
   ListChecks,
   Undo2,
   LayoutDashboard,
+  BookOpen,
 } from "lucide-react"
 import { TbBuildingTunnel } from "react-icons/tb"
 import { ROUTES } from "@/lib/routes"
@@ -54,8 +55,13 @@ export const getNavItems = (t: any) => [
     icon: Scroll,
   },
   {
-    title: t('nav.audit'),
-    url: ROUTES.audit,
-    icon: Undo2,
-  },
-]
+      title: t('nav.audit'),
+      url: ROUTES.audit,
+      icon: Undo2,
+    },
+    {
+      title: t('nav.guide'),
+      url: ROUTES.guide,
+      icon: BookOpen,
+    },
+  ]

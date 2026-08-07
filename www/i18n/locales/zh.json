@@ -1030,7 +1030,8 @@
     "workers": "函数",
     "overview": "总览",
     "ports": "端口中心",
-    "audit": "审计与回滚"
+    "audit": "审计与回滚",
+    "guide": "操作指南"
   },
   "frpc_form": {
     "add": "新增隧道",

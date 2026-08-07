@@ -1013,7 +1013,8 @@
     "trafficStats": "流量統計",
     "realTimeLog": "實時日志",
     "console": "控制台",
-    "workers": "函數"
+    "workers": "函數",
+    "guide": "操作指南"
   },
   "frpc_form": {
     "add": "新增隧道",
