@@ -223,3 +223,57 @@ jobs:
         env:
           MASTER_GLOBAL_SECRET: ${{ secrets.MASTER_GLOBAL_SECRET }}
           MASTER_API_HOST: ${{ secrets.MASTER_API_HOST }}
+
+  release:
+    name: Release binaries (v*)
+    needs: [go-checks, deploy-script-tests, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download embedded frontend
+        uses: actions/download-artifact@v8
+        with:
+          name: frp-panel-frontend
+          path: cmd/frpp/out
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build windows/amd64
+        run: >-
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64
+          go build -trimpath -ldflags="-s -w"
+          -o frp-panel-windows-amd64.exe ./cmd/frpp
+
+      - name: Download linux binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: frp-panel-linux-*
+          path: dist
+          merge-multiple: true
+
+      - name: Stage release files with version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          mkdir -p release-files
+          cp dist/frp-panel-linux-amd64 "release-files/frp-panel-${VERSION}-linux-amd64"
+          cp dist/frp-panel-linux-arm64 "release-files/frp-panel-${VERSION}-linux-arm64"
+          cp frp-panel-windows-amd64.exe "release-files/frp-panel-${VERSION}-windows-amd64.exe"
+          (cd release-files && sha256sum * > checksums.txt)
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3.0.2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release-files/*
