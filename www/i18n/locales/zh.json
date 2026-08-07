@@ -687,7 +687,8 @@
       "preflight_client": "Client 端检查",
       "preflight_all_ok": "两端均通过，可以提交",
       "preflight_required": "请先检查端口，两端均通过后才可提交",
-      "submit_pending": "提交中…"
+      "submit_pending": "提交中…",
+      "preflight_client_warning": "Client 端端口当前未监听（警告）：隧道可以创建，但本地服务启动前流量不可达"
     },
     "action": {
       "delete_success": "删除成功",

@@ -327,7 +327,7 @@ EVENT_VALIDATE_PORT
 | 错误码 | 含义 |
 |---|---|
 | `PORT_REMOTE_IN_USE` | 公网端口被占用 |
-| `PORT_LOCAL_NOT_LISTENING` | 本地目标未监听 |
+| `PORT_LOCAL_NOT_LISTENING` | 本地目标未监听（警告级：允许创建/启动，界面提示） |
 | `CONFIG_VALIDATION_FAILED` | TCP/UDP 配置解析或字段校验失败 |
 | `PORT_SCAN_UNAVAILABLE` | 探测失败或权限不足 |
 | `AGENT_OFFLINE` | Server/Client Agent 离线 |
@@ -540,7 +540,7 @@ RTO 目标不超过 60 秒，前提是切流门禁已验证旧手机 frpc 在 `:
 | 双端正常创建 | 提交成功，公网可达，审计完整 |
 | 公网端口被 OS 进程占用 | `PORT_REMOTE_IN_USE`，零配置变更 |
 | 公网端口被其他 FRP 规则占用 | 拒绝保存，显示规则名 |
-| 本地端口未监听 | `PORT_LOCAL_NOT_LISTENING` |
+| 本地端口未监听 | 警告 `PORT_LOCAL_NOT_LISTENING`，允许创建/启动（2026-08 变更：客户端门禁降级为警告） |
 | Agent 离线/扫描超时 | `AGENT_OFFLINE` 或 `PORT_SCAN_UNAVAILABLE` |
 | 两请求抢同一端口 | 仅一项成功，另一项 `RESERVATION_CONFLICT` |
 | Client 应用后验证失败 | 自动恢复 before 快照 |

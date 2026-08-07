@@ -346,7 +346,7 @@ func TestRunClientActivePasses(t *testing.T) {
 	}
 }
 
-func TestRunClientAvailableFallsBackToLocalNotListening(t *testing.T) {
+func TestRunClientAvailableWarnsButPasses(t *testing.T) {
 	env := newPreflightEnv(t)
 	env.pump(t, testClientID, env.client, func(req *pb.ServerMessage) *pb.ClientMessage {
 		return validateResp(false, "", pb.PortState_STATE_AVAILABLE, "tcp", "127.0.0.1", 8080)
@@ -357,21 +357,22 @@ func TestRunClientAvailableFallsBackToLocalNotListening(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunClient error: %v", err)
 	}
-	if res.Ok {
-		t.Fatal("AVAILABLE must reject the client gate")
+	// 2026-08 user decision: AVAILABLE is advisory, not a rejection.
+	if !res.Ok {
+		t.Fatal("AVAILABLE must PASS the client gate (warn-graded)")
 	}
 	if res.ErrorCode != defs.ErrorCodePortLocalNotListening {
-		t.Fatalf("error code = %q, want %s", res.ErrorCode, defs.ErrorCodePortLocalNotListening)
+		t.Fatalf("error code = %q, want advisory %s", res.ErrorCode, defs.ErrorCodePortLocalNotListening)
 	}
-	if res.ErrorMessage != "no local service is listening on the client" {
-		t.Fatalf("default message expected, got %q", res.ErrorMessage)
+	if res.ErrorMessage == "" {
+		t.Fatal("warning message expected")
 	}
 	if res.Observation == nil || res.Observation.GetState() != pb.PortState_STATE_AVAILABLE {
 		t.Fatalf("observation must be preserved as evidence: %+v", res.Observation)
 	}
 }
 
-func TestRunClientUnknownFallsBackToLocalNotListening(t *testing.T) {
+func TestRunClientUnknownRejects(t *testing.T) {
 	env := newPreflightEnv(t)
 	env.pump(t, testClientID, env.client, func(req *pb.ServerMessage) *pb.ClientMessage {
 		return validateResp(false, "", pb.PortState_STATE_UNKNOWN, "tcp", "127.0.0.1", 8080)
@@ -385,14 +386,15 @@ func TestRunClientUnknownFallsBackToLocalNotListening(t *testing.T) {
 	if res.Ok {
 		t.Fatal("UNKNOWN must reject the client gate")
 	}
-	if res.ErrorCode != defs.ErrorCodePortLocalNotListening {
-		t.Fatalf("error code = %q, want %s (local-not-listening fallback)", res.ErrorCode, defs.ErrorCodePortLocalNotListening)
+	if res.ErrorCode != defs.ErrorCodePortScanUnavailable {
+		t.Fatalf("error code = %q, want %s", res.ErrorCode, defs.ErrorCodePortScanUnavailable)
 	}
 }
 
-func TestRunClientAgentLiesAvailableNeverAccepted(t *testing.T) {
-	// A lying agent (Ok=true while nothing listens) must still fail: the
-	// client gate requires the LISTENING state, not the agent's word.
+func TestRunClientAvailablePassesWithWarningEvenWhenAgentSaysOk(t *testing.T) {
+	// A lying agent (Ok=true while nothing listens) still yields the
+	// advisory warning: AVAILABLE passes (warn-graded) but MUST carry
+	// PORT_LOCAL_NOT_LISTENING so the UI shows the warning.
 	env := newPreflightEnv(t)
 	env.pump(t, testClientID, env.client, func(req *pb.ServerMessage) *pb.ClientMessage {
 		obs := &pb.PortObservation{
@@ -413,11 +415,14 @@ func TestRunClientAgentLiesAvailableNeverAccepted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunClient error: %v", err)
 	}
-	if res.Ok {
-		t.Fatal("AVAILABLE must never pass the client gate even when the agent says ok")
+	if !res.Ok {
+		t.Fatal("AVAILABLE must pass the client gate (warn-graded)")
 	}
 	if res.ErrorCode != defs.ErrorCodePortLocalNotListening {
-		t.Fatalf("error code = %q, want %s", res.ErrorCode, defs.ErrorCodePortLocalNotListening)
+		t.Fatalf("error code = %q, want advisory %s", res.ErrorCode, defs.ErrorCodePortLocalNotListening)
+	}
+	if res.ErrorMessage == "" {
+		t.Fatal("warning message expected")
 	}
 }
 

@@ -234,7 +234,7 @@ func TestPreflightServerConflict(t *testing.T) {
 	}
 }
 
-func TestPreflightClientNotListening(t *testing.T) {
+func TestPreflightClientNotListeningWarnsButPasses(t *testing.T) {
 	env := newPreflightEnv(t)
 	env.pump(t, testServerID, env.server, func(req *pb.ServerMessage) *pb.ClientMessage {
 		return validateResp(true, "", pb.PortState_STATE_AVAILABLE, "tcp", "0.0.0.0", 8000)
@@ -247,11 +247,16 @@ func TestPreflightClientNotListening(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preflight error: %v", err)
 	}
-	if resp.GetClientOk() {
-		t.Fatal("client gate must fail when nothing listens locally")
+	// 2026-08 user decision: the client gate is WARN-graded — nothing
+	// listening locally must NOT block rule creation.
+	if !resp.GetClientOk() {
+		t.Fatal("client gate must PASS (warn-graded) when nothing listens locally")
+	}
+	if !resp.GetServerOk() {
+		t.Fatal("server gate must pass")
 	}
 	if resp.GetErrorCode() != defs.ErrorCodePortLocalNotListening {
-		t.Fatalf("error code = %q, want %s", resp.GetErrorCode(), defs.ErrorCodePortLocalNotListening)
+		t.Fatalf("error code = %q, want advisory %s", resp.GetErrorCode(), defs.ErrorCodePortLocalNotListening)
 	}
 }
 

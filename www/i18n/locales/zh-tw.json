@@ -673,7 +673,8 @@
       "invalid_json": "JSON非法",
       "draft": "暫存",
       "invalid_config": "配置不正確",
-      "submit": "提交"
+      "submit": "提交",
+      "preflight_client_warning": "Client 端埠號目前未監聽（警告）：隧道可以建立，但本地服務啟動前流量不可達"
     },
     "action": {
       "delete_success": "刪除成功",

@@ -416,8 +416,22 @@ export const ProxyConfigMutateForm = ({
                     : ''}
                 </p>
               )}
+            {/* 2026-08: the client gate is WARN-graded — a local port that
+                is not listening yet passes the gate but carries
+                PORT_LOCAL_NOT_LISTENING as an advisory warning. */}
             {preflightState.data?.serverOk === true &&
-              preflightState.data?.clientOk === true && (
+              preflightState.data?.clientOk === true &&
+              preflightState.data?.errorCode === 'PORT_LOCAL_NOT_LISTENING' && (
+                <p className="text-xs text-amber-600 break-all">
+                  {t('proxy.config.preflight_client_warning')}
+                  {preflightState.data.errorMessage
+                    ? `: ${preflightState.data.errorMessage}`
+                    : ''}
+                </p>
+              )}
+            {preflightState.data?.serverOk === true &&
+              preflightState.data?.clientOk === true &&
+              !preflightState.data?.errorCode && (
                 <p className="text-xs text-green-600">{t('proxy.config.preflight_all_ok')}</p>
               )}
           </div>

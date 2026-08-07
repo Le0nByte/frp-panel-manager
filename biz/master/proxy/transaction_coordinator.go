@@ -430,7 +430,21 @@ func (tc *TransactionCoordinator) SafeCreateProxy(c *app.Context, req *pb.Create
 		_ = tc.failTx(c, userInfo, txID, code, fmt.Sprintf("preflight transport failure: %v", err), "")
 		return invalidCreateResp(code, fmt.Sprintf("preflight failed: %v", err)), nil
 	}
-	if !preResp.GetServerOk() || !preResp.GetClientOk() {
+	if !preResp.GetServerOk() {
+		// server gate stays STRICT: the public port must be bindable.
+		code := preResp.GetErrorCode()
+		if code == "" {
+			code = defs.ErrorCodePortScanUnavailable
+		}
+		evidence, _ := json.Marshal(preResp)
+		_ = tc.failTx(c, userInfo, txID, code, preResp.GetErrorMessage(), string(evidence))
+		return invalidCreateResp(code, preResp.GetErrorMessage()), nil
+	}
+	if !preResp.GetClientOk() && preResp.GetErrorCode() != defs.ErrorCodePortLocalNotListening {
+		// client gate is WARN-graded: PORT_LOCAL_NOT_LISTENING (local port
+		// not listening yet) is advisory and MUST NOT block creation. Any
+		// other client failure (offline / unknown / conflict / transport)
+		// still rejects.
 		code := preResp.GetErrorCode()
 		if code == "" {
 			code = defs.ErrorCodePortScanUnavailable

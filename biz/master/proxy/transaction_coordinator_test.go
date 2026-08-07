@@ -931,22 +931,49 @@ func TestSafeCreatePreflightServerGateFail(t *testing.T) {
 	require.ElementsMatch(t, []string{"ssh"}, env.childProxyNames(), "no config change on preflight failure")
 }
 
-func TestSafeCreatePreflightClientGateFail(t *testing.T) {
+func TestSafeCreatePreflightClientGateWarningAllowsCreate(t *testing.T) {
+	// 2026-08 user decision: the client gate is WARN-graded —
+	// PORT_LOCAL_NOT_LISTENING (local port not listening yet) must NOT
+	// block creation.
 	env := newCoordTestEnv(t)
 	env.seedShadowedPair(false, tcpProxy("ssh", 24, 22))
 	env.pre.clientOK = false
 	env.pre.code = defs.ErrorCodePortLocalNotListening
-	env.pre.msg = "no local service on 127.0.0.1:8080"
+	env.pre.msg = "local port is not listening yet (warning)"
 	tc := env.newCoordinator()
 	key := uuidKey()
 
 	resp, err := tc.SafeCreateProxy(env.ctx, createReq(key, candidateWebTOML))
 	require.NoError(t, err)
-	assertInvalidCode(t, resp, defs.ErrorCodePortLocalNotListening)
+	require.NotNil(t, resp)
+	require.Equal(t, pb.RespCode_RESP_CODE_SUCCESS, resp.GetStatus().GetCode())
+	require.Empty(t, resp.GetErrorCode(), "advisory client warning must not fail creation")
+
+	tx := env.txByKey(key)
+	require.Equal(t, models.TxStatusCommitted, tx.Status)
+	require.NotZero(t, env.apply.calls, "the rule must still be applied to the agent")
+	require.NotNil(t, env.reservationByPort(8000))
+}
+
+func TestSafeCreatePreflightClientGateUnknownRejects(t *testing.T) {
+	// client gate hard failures (offline / unknown / transport) still
+	// reject creation — only the advisory PORT_LOCAL_NOT_LISTENING is
+	// warn-graded.
+	env := newCoordTestEnv(t)
+	env.seedShadowedPair(false, tcpProxy("ssh", 24, 22))
+	env.pre.clientOK = false
+	env.pre.code = defs.ErrorCodePortScanUnavailable
+	env.pre.msg = "port scan unavailable"
+	tc := env.newCoordinator()
+	key := uuidKey()
+
+	resp, err := tc.SafeCreateProxy(env.ctx, createReq(key, candidateWebTOML))
+	require.NoError(t, err)
+	assertInvalidCode(t, resp, defs.ErrorCodePortScanUnavailable)
 
 	tx := env.txByKey(key)
 	require.Equal(t, models.TxStatusFailed, tx.Status)
-	require.Equal(t, defs.ErrorCodePortLocalNotListening, tx.ErrorCode)
+	require.Equal(t, defs.ErrorCodePortScanUnavailable, tx.ErrorCode)
 	require.Zero(t, env.apply.calls)
 	requireNoReservation(t, env)
 }

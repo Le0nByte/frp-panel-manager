@@ -692,7 +692,8 @@
       "preflight_client": "Client check",
       "preflight_all_ok": "Both sides passed — you may submit",
       "preflight_required": "Run the preflight first; submit unlocks only when both sides pass",
-      "submit_pending": "Submitting…"
+      "submit_pending": "Submitting…",
+      "preflight_client_warning": "Client port is not listening yet (warning): the rule can be created, but traffic is unreachable until the local service starts"
     },
     "action": {
       "delete_success": "Delete Successful",

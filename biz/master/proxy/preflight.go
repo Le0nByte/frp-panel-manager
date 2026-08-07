@@ -90,14 +90,16 @@ func resolvePreflightTarget(req *pb.PreflightRequest) (target preflightTarget, c
 // modifying any config:
 //
 //  1. Server gate: EVENT_VALIDATE_PORT with bind_probe=true on the remote
-//     port. Savable only when AVAILABLE (a fresh bind probe succeeds).
+//     port. STRICT: savable only when AVAILABLE (a fresh bind probe
+//     succeeds); any listener rejects with PORT_REMOTE_IN_USE.
 //  2. Client gate: EVENT_VALIDATE_PORT with bind_probe=false on the local
-//     ip:port. Savable when LISTENING or ACTIVE (a real service exists;
-//     ACTIVE means the listener currently has traffic/connections).
+//     ip:port. WARN-graded since the 2026-08 user decision: LISTENING /
+//     ACTIVE pass green; AVAILABLE (nothing listening) also passes but
+//     carries PORT_LOCAL_NOT_LISTENING as an advisory warning; CONFLICT,
+//     UNKNOWN, agent offline and timeout still reject.
 //
-// UNKNOWN, agent offline and timeout all reject the save. The response
-// carries per-side evidence (observation + error code) for the UI to render
-// the specific node/protocol/port/owner (spec §7.3).
+// The response carries per-side evidence (observation + error code) for the
+// UI to render the specific node/protocol/port/owner (spec §7.3).
 //
 // A4a: the request shape is validated and the candidate target resolved
 // exactly once; both sides then reuse the same single-gate helpers that
@@ -129,7 +131,9 @@ func Preflight(c *app.Context, req *pb.PreflightRequest) (*pb.PreflightResponse,
 		return resp, nil
 	}
 
-	// 2. client gate: a real local service must be listening on the target
+	// 2. client gate: WARN-graded (2026-08 user decision) — LISTENING /
+	// ACTIVE pass green; AVAILABLE passes but carries an advisory
+	// PORT_LOCAL_NOT_LISTENING warning; hard failures still reject.
 	clientRes := runClientGate(c, req, target)
 	resp.ClientOk = lo.ToPtr(clientRes.Ok)
 	if clientRes.Observation != nil {
@@ -140,7 +144,13 @@ func Preflight(c *app.Context, req *pb.PreflightRequest) (*pb.PreflightResponse,
 		resp.ErrorMessage = lo.ToPtr(clientRes.ErrorMessage)
 		return resp, nil
 	}
-
+	// advisory warning: the client gate passed, but the local port is not
+	// listening yet — propagate PORT_LOCAL_NOT_LISTENING so the UI can
+	// render a warning without blocking submission.
+	if clientRes.ErrorCode != "" {
+		resp.ErrorCode = lo.ToPtr(clientRes.ErrorCode)
+		resp.ErrorMessage = lo.ToPtr(clientRes.ErrorMessage)
+	}
 	return resp, nil
 }
 
@@ -182,10 +192,20 @@ func runServerGate(c *app.Context, req *pb.PreflightRequest, target preflightTar
 
 // runClientGate executes the client-side local-listen gate (A4a) against
 // the resolved target. Every outcome is folded into a structured
-// PreflightGateResult; the server node is never contacted. Only the
-// LISTENING or ACTIVE passes; AVAILABLE (nothing listening), UNKNOWN and
-// transport failures reject with PORT_LOCAL_NOT_LISTENING /
-// AGENT_OFFLINE / PORT_SCAN_UNAVAILABLE.
+// PreflightGateResult; the server node is never contacted.
+//
+// The client gate is WARN-graded since the 2026-08 user decision: a rule
+// may be created/started BEFORE the local service is up (e.g. the service
+// starts on demand or after the tunnel is provisioned). Therefore:
+//   - LISTENING / ACTIVE pass green.
+//   - STATE_AVAILABLE (nothing listening) PASSES with
+//     PORT_LOCAL_NOT_LISTENING as an advisory warning code + message: the
+//     UI renders it as a warning, and create/start flows must not reject
+//     on it.
+//   - STATE_CONFLICT (ambiguous, multiple processes) still rejects with
+//     PORT_LOCAL_NOT_LISTENING and an ambiguity message.
+//   - STATE_UNKNOWN / agent offline / transport failures still reject
+//     (fail-closed) with PORT_SCAN_UNAVAILABLE / AGENT_OFFLINE.
 func runClientGate(c *app.Context, req *pb.PreflightRequest, target preflightTarget) *PreflightGateResult {
 	clientVReq := &pb.ValidatePortRequest{
 		NodeId:        lo.ToPtr(req.GetClientId()),
@@ -204,15 +224,31 @@ func runClientGate(c *app.Context, req *pb.PreflightRequest, target preflightTar
 	}
 	state := observedState(clientCheck)
 	res := &PreflightGateResult{
-		Ok: clientCheck.GetOk() &&
-			(state == pb.PortState_STATE_LISTENING || state == pb.PortState_STATE_ACTIVE),
+		Ok:          clientCheck.GetOk(),
 		Observation: clientCheck.GetObservation(),
 	}
-	if !res.Ok {
-		res.ErrorCode = pickCode(clientCheck.GetErrorCode(), defs.ErrorCodePortLocalNotListening)
+	switch state {
+	case pb.PortState_STATE_LISTENING, pb.PortState_STATE_ACTIVE:
+		// fully green: a real service is listening
+	case pb.PortState_STATE_AVAILABLE:
+		// WARN-graded: the rule may be provisioned before the service
+		// starts; carry PORT_LOCAL_NOT_LISTENING as an advisory code so
+		// create/start flows and the UI treat it as a warning, not a
+		// rejection.
+		res.Ok = true
+		res.ErrorCode = defs.ErrorCodePortLocalNotListening
+		res.ErrorMessage = "local port is not listening yet (warning): the rule can be created, but traffic is unreachable until the local service starts"
+	case pb.PortState_STATE_CONFLICT:
+		// ambiguous local binding: reject — multiple processes own the port
+		res.Ok = false
+		res.ErrorCode = defs.ErrorCodePortLocalNotListening
+		res.ErrorMessage = "target port is ambiguous (multiple processes)"
+	default: // STATE_UNKNOWN / STATE_UNSPECIFIED
+		res.Ok = false
+		res.ErrorCode = pickCode(clientCheck.GetErrorCode(), defs.ErrorCodePortScanUnavailable)
 		res.ErrorMessage = clientCheck.GetErrorMessage()
 		if res.ErrorMessage == "" {
-			res.ErrorMessage = "no local service is listening on the client"
+			res.ErrorMessage = "port scan unavailable for the client local port"
 		}
 	}
 	return res

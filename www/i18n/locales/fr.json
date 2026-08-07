@@ -683,7 +683,8 @@
       "invalid_json": "JSON Invalide",
       "draft": "Brouillon",
       "invalid_config": "Configuration invalide",
-      "submit": "Soumettre"
+      "submit": "Soumettre",
+      "preflight_client_warning": "Port client non écouté (avertissement) : la règle peut être créée, mais le trafic est inaccessible tant que le service local ne démarre pas"
     },
     "action": {
       "delete_success": "Suppression Réussie",
