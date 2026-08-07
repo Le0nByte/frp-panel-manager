@@ -55,12 +55,14 @@ func getPlatformInfo(appInstance app.Application, c *gin.Context) (*pb.GetPlatfo
 	clientAPIUrl := appInstance.GetConfig().Client.APIUrl
 
 	if len(clientRPCUrl) == 0 {
-		clientRPCUrl = fmt.Sprintf("grpc://%s:%d", appInstance.GetConfig().Master.RPCHost, appInstance.GetConfig().Master.RPCPort)
-	}
+			// 显式未配置时，用公网 API 地址（MASTER_API_HOST）而非回环 RPC 地址，
+			// 否则复制给 Agent 的启动命令会指向 127.0.0.1 而无法连接。
+			clientRPCUrl = fmt.Sprintf("grpc://%s:%d", appInstance.GetConfig().Master.APIHost, appInstance.GetConfig().Master.RPCPort)
+		}
 
-	if len(clientAPIUrl) == 0 {
-		clientAPIUrl = fmt.Sprintf("%s://%s:%d", appInstance.GetConfig().Master.APIScheme, appInstance.GetConfig().Master.RPCHost, appInstance.GetConfig().Master.APIPort)
-	}
+		if len(clientAPIUrl) == 0 {
+			clientAPIUrl = fmt.Sprintf("%s://%s:%d", appInstance.GetConfig().Master.APIScheme, appInstance.GetConfig().Master.APIHost, appInstance.GetConfig().Master.APIPort)
+		}
 
 	return &pb.GetPlatformInfoResponse{
 		Status:                  &pb.Status{Code: pb.RespCode_RESP_CODE_SUCCESS, Message: "ok"},

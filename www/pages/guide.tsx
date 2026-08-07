@@ -31,7 +31,7 @@ export default function GuidePage() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>前置条件</AlertTitle>
                 <AlertDescription>
-                  Master 管理端已部署并运行在 <code>47.109.18.109:9443</code>，
+                  Master 管理端已部署并运行在 <code>【你的公网IP】:9443</code>，
                   且已注册管理员账号。如果还没有，请先完成部署和注册。
                 </AlertDescription>
               </Alert>
@@ -45,9 +45,9 @@ export default function GuidePage() {
                 <div className="ml-9 space-y-2 text-sm text-muted-foreground">
                   <p>打开 Release 页面下载 Windows 版客户端：</p>
                   <div className="rounded bg-muted p-3 font-mono text-xs">
-                    https://github.com/NeitherCandiDa/frp-panel-manager/releases
+                    https://github.com/NeitherCandiDa/frp-panel-manager/releases（下载最新版）
                   </div>
-                  <p>下载 <code>frp-panel-v0.2.0-windows-amd64.exe</code>，将其重命名为 <code>frp-panel.exe</code>，放在 <code>D:\frp-panel\</code> 目录。</p>
+                  <p>下载 <code>frp-panel-最新版-windows-amd64.exe</code>，将其重命名为 <code>frp-panel.exe</code>，放在 <code>D:\frp-panel\</code> 目录。</p>
                 </div>
               </div>
 
@@ -59,7 +59,7 @@ export default function GuidePage() {
                 </h3>
                 <div className="ml-9 space-y-2 text-sm text-muted-foreground">
                   <ol className="list-decimal space-y-1 pl-5">
-                    <li>浏览器打开 <code className="mx-1">https://47.109.18.109:9443/</code>（自签证书警告 → 继续访问）</li>
+                    <li>浏览器打开 <code className="mx-1">https://【你的公网IP】:9443/</code>（自签证书警告 → 继续访问）</li>
                     <li>用管理员账号登录</li>
                     <li>左侧菜单点击 <strong>客户端</strong></li>
                     <li>页面顶部，点击 <strong>新建客户端</strong> 按钮</li>
@@ -93,7 +93,7 @@ export default function GuidePage() {
                     </AlertDescription>
                   </Alert>
                   <div className="rounded bg-green-50 p-3 font-mono text-xs text-green-800">
-                    frp-panel.exe client -s 84cc2fd7-xxxx -i client.home-pc --api-url https://47.109.18.109:9443 --rpc-url grpc://47.109.18.109:9101
+                    frp-panel.exe client -s 84cc2fd7-xxxx -i client.home-pc --api-url https://【你的公网IP】:9443 --rpc-url grpc://【你的公网IP】:9101
                   </div>
                 </div>
               </div>
@@ -109,7 +109,7 @@ export default function GuidePage() {
                   <div className="rounded bg-muted p-3 font-mono text-xs">
                     <div>cd D:\frp-panel</div>
                     <div className="mt-1">$env:CLIENT_TLS_INSECURE_SKIP_VERIFY=&quot;true&quot;</div>
-                    <div className="mt-1">.\frp-panel.exe client -s 84cc2fd7-xxxx -i client.home-pc --api-url https://47.109.18.109:9443 --rpc-url grpc://47.109.18.109:9101</div>
+                    <div className="mt-1">.\frp-panel.exe client -s 84cc2fd7-xxxx -i client.home-pc --api-url https://【你的公网IP】:9443 --rpc-url grpc://【你的公网IP】:9101</div>
                   </div>
                   <p>保持 PowerShell 窗口打开（不要关闭）。</p>
                 </div>
@@ -145,8 +145,8 @@ export default function GuidePage() {
                     <div>&nbsp;&nbsp;&nbsp;&nbsp;&quot;client&quot;</div>
                     <div>&nbsp;&nbsp;&nbsp;&nbsp;&quot;-s&quot;, &quot;84cc2fd7-xxxx&quot;</div>
                     <div>&nbsp;&nbsp;&nbsp;&nbsp;&quot;-i&quot;, &quot;client.home-pc&quot;</div>
-                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&quot;--api-url&quot;, &quot;https://47.109.18.109:9443&quot;</div>
-                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&quot;--rpc-url&quot;, &quot;grpc://47.109.18.109:9101&quot;</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&quot;--api-url&quot;, &quot;https://【你的公网IP】:9443&quot;</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&quot;--rpc-url&quot;, &quot;grpc://【你的公网IP】:9101&quot;</div>
                     <div>)</div>
                     <div>Start-Process -NoNewWindow -FilePath $Bin -ArgumentList $Args -RedirectStandardOutput $LogFile -RedirectStandardError $LogFile</div>
                   </div>
@@ -174,7 +174,7 @@ export default function GuidePage() {
                   换用正式证书后可改为 <code>false</code>
                 </li>
                 <li>
-                  <code>--api-url</code> 和 <code>--rpc-url</code> 必须填公网地址（<code>47.109.18.109</code>），不能填 <code>127.0.0.1</code>
+                  <code>--api-url</code> 和 <code>--rpc-url</code> 必须填公网地址（<code>【你的公网IP】</code>），不能填 <code>127.0.0.1</code>
                 </li>
                 <li>内网机器不需要公网 IP，也不需要路由器端口映射——frpc 主动连出去</li>
                 <li>如果家电脑装了防火墙，放行 <code>frp-panel.exe</code> 出站即可（不需要入站规则）</li>
@@ -182,7 +182,7 @@ export default function GuidePage() {
                   创建隧道（把家电脑的服务暴露到公网）：在 WebUI 进入客户端详情 → 代理列表 → 新建代理，
                   填本地端口和公网端口
                 </li>
-                <li>如果家电脑是 Linux，下载 <code>frp-panel-v0.2.0-linux-amd64</code>，启动命令改为 <code>CLIENT_TLS_INSECURE_SKIP_VERIFY=true ./frp-panel ...</code>，开机自启用 systemd 或 crontab</li>
+                <li>如果家电脑是 Linux，下载 <code>frp-panel-最新版-linux-amd64</code>，启动命令改为 <code>CLIENT_TLS_INSECURE_SKIP_VERIFY=true ./frp-panel ...</code>，开机自启用 systemd 或 crontab</li>
               </ul>
             </CardContent>
           </Card>
