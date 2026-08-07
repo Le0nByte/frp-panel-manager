@@ -285,7 +285,7 @@ assert_eq "missing unit rc" 1 "$RC"
 new_fs
 fresh_log
 export STUB_SYSTEMCTL_STOP_EXIT=1
-run_capture env PATH="$STUBS_NOSQL:$ORIG_PATH" bash "$root/deploy/backup-aliyun.sh" --fs-root "$FS" --out "$ODIR/a8"
+run_capture env FRP_PANEL_SQLITE3_BIN=__frp_panel_missing_sqlite3__ PATH="$STUBS_NOSQL:$ORIG_PATH" bash "$root/deploy/backup-aliyun.sh" --fs-root "$FS" --out "$ODIR/a8"
 assert_eq "stop failure rc" 1 "$RC"
 assert_grep "stop attempted" "systemctl stop frp-panel.service" "$STUB_LOG"
 assert_grep "trap restarted service after stop failure" "systemctl start frp-panel.service" "$STUB_LOG"
