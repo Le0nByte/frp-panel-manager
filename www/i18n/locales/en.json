@@ -693,7 +693,11 @@
       "preflight_all_ok": "Both sides passed — you may submit",
       "preflight_required": "Run the preflight first; submit unlocks only when both sides pass",
       "submit_pending": "Submitting…",
-      "preflight_client_warning": "Client port is not listening yet (warning): the rule can be created, but traffic is unreachable until the local service starts"
+      "preflight_client_warning": "Client port is not listening yet (warning): the rule can be created, but traffic is unreachable until the local service starts",
+      "open_firewall": "Open server firewall port (firewalld)",
+      "open_firewall_desc": "Open the public port automatically after creation",
+      "firewall_opened": "Firewall port opened",
+      "firewall_failed": "Tunnel created, but the firewall port was not opened"
     },
     "action": {
       "delete_success": "Delete Successful",
@@ -721,11 +725,7 @@
     "stats": {
       "label": "Tunnel Name",
       "tunnel_traffic": "Tunnel: {{name}}"
-    },
-    "config.open_firewall": "Open server firewall port (firewalld)",
-    "config.open_firewall_desc": "Open the public port automatically after creation",
-    "config.firewall_opened": "Firewall port opened",
-    "config.firewall_failed": "Tunnel created, but the firewall port was not opened"
+    }
   },
   "server": {
     "configuration": "Server Configuration",
@@ -767,7 +767,16 @@
       "vhost_http_port": "HTTP Listen Port",
       "subdomain_host": "Subdomain Host",
       "quic_bind_port": "Quic Bind Port",
-      "kcp_bind_port": "KCP Bind Port"
+      "kcp_bind_port": "KCP Bind Port",
+      "port_quota_title": "Port Quota",
+      "max_ports_per_client": "Max ports per client",
+      "max_ports_per_client_hint": "Max tunnels a client may create, 1-65535",
+      "allow_ports": "Allowed ports (allowPorts)",
+      "allow_ports_hint": "Single port (e.g. 5700) or range (e.g. 10000-20000); empty = unlimited",
+      "allow_ports_empty": "No whitelist configured (unlimited)",
+      "add_single_port": "Add single port",
+      "add_port_range": "Add range",
+      "port_rule_invalid": "Invalid port rule"
     },
     "create": {
       "submitting": "Creating server...",
@@ -822,16 +831,7 @@
     "status_offline": "Offline",
     "status_error": "Error",
     "status_unknown": "Unknown",
-    "status_pause": "Paused",
-    "form.port_quota_title": "Port Quota",
-    "form.max_ports_per_client": "Max ports per client",
-    "form.max_ports_per_client_hint": "Max tunnels a client may create, 1-65535",
-    "form.allow_ports": "Allowed ports (allowPorts)",
-    "form.allow_ports_hint": "Single port (e.g. 5700) or range (e.g. 10000-20000); empty = unlimited",
-    "form.allow_ports_empty": "No whitelist configured (unlimited)",
-    "form.add_single_port": "Add single port",
-    "form.add_port_range": "Add range",
-    "form.port_rule_invalid": "Invalid port rule"
+    "status_pause": "Paused"
   },
   "auth": {
     "loggingIn": "Logging in, please wait",

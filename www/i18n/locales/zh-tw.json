@@ -674,7 +674,11 @@
       "draft": "暫存",
       "invalid_config": "配置不正確",
       "submit": "提交",
-      "preflight_client_warning": "Client 端埠號目前未監聽（警告）：隧道可以建立，但本地服務啟動前流量不可達"
+      "preflight_client_warning": "Client 端埠號目前未監聽（警告）：隧道可以建立，但本地服務啟動前流量不可達",
+      "open_firewall": "開放伺服器防火牆連接埠（firewalld）",
+      "open_firewall_desc": "建立成功後自動放行該公網連接埠，無需手動登入伺服器",
+      "firewall_opened": "防火牆連接埠已開放",
+      "firewall_failed": "隧道已建立，但防火牆連接埠未開放"
     },
     "action": {
       "delete_success": "刪除成功",
@@ -702,11 +706,7 @@
     "stats": {
       "label": "隧道名稱",
       "tunnel_traffic": "隧道：{{name}}"
-    },
-    "config.open_firewall": "開放伺服器防火牆連接埠（firewalld）",
-    "config.open_firewall_desc": "建立成功後自動放行該公網連接埠，無需手動登入伺服器",
-    "config.firewall_opened": "防火牆連接埠已開放",
-    "config.firewall_failed": "隧道已建立，但防火牆連接埠未開放"
+    }
   },
   "server": {
     "configuration": "服務器配置",
@@ -748,7 +748,16 @@
       "vhost_http_port": "HTTP 監聽端口",
       "subdomain_host": "域名後綴",
       "quic_bind_port": "Quic 監聽端口",
-      "kcp_bind_port": "KCP 監聽端口"
+      "kcp_bind_port": "KCP 監聽端口",
+      "port_quota_title": "連接埠限制",
+      "max_ports_per_client": "單一用戶端最大隧道數（maxPortsPerClient）",
+      "max_ports_per_client_hint": "每個用戶端最多可建立的隧道數量，範圍 1-65535",
+      "allow_ports": "連接埠白名單（allowPorts）",
+      "allow_ports_hint": "支援單一連接埠（如 5700）或範圍（如 10000-20000）；留空表示不限制",
+      "allow_ports_empty": "未設定白名單（不限制連接埠）",
+      "add_single_port": "新增單一連接埠",
+      "add_port_range": "新增範圍",
+      "port_rule_invalid": "連接埠規則格式無效"
     },
     "create": {
       "submitting": "正在創建服務端...",
@@ -803,16 +812,7 @@
     "status_offline": "離線",
     "status_error": "錯誤",
     "status_unknown": "未知",
-    "status_pause": "已暫停",
-    "form.port_quota_title": "連接埠限制",
-    "form.max_ports_per_client": "單一用戶端最大隧道數（maxPortsPerClient）",
-    "form.max_ports_per_client_hint": "每個用戶端最多可建立的隧道數量，範圍 1-65535",
-    "form.allow_ports": "連接埠白名單（allowPorts）",
-    "form.allow_ports_hint": "支援單一連接埠（如 5700）或範圍（如 10000-20000）；留空表示不限制",
-    "form.allow_ports_empty": "未設定白名單（不限制連接埠）",
-    "form.add_single_port": "新增單一連接埠",
-    "form.add_port_range": "新增範圍",
-    "form.port_rule_invalid": "連接埠規則格式無效"
+    "status_pause": "已暫停"
   },
   "auth": {
     "loggingIn": "登錄中，請稍候",

@@ -684,7 +684,11 @@
       "draft": "Brouillon",
       "invalid_config": "Configuration invalide",
       "submit": "Soumettre",
-      "preflight_client_warning": "Port client non écouté (avertissement) : la règle peut être créée, mais le trafic est inaccessible tant que le service local ne démarre pas"
+      "preflight_client_warning": "Port client non écouté (avertissement) : la règle peut être créée, mais le trafic est inaccessible tant que le service local ne démarre pas",
+      "open_firewall": "Ouvrir le port du pare-feu (firewalld)",
+      "open_firewall_desc": "Ouvre le port public automatiquement après la création",
+      "firewall_opened": "Port du pare-feu ouvert",
+      "firewall_failed": "Tunnel créé, mais le port du pare-feu n’a pas été ouvert"
     },
     "action": {
       "delete_success": "Suppression Réussie",
@@ -712,11 +716,7 @@
     "stats": {
       "label": "Nom du Tunnel",
       "tunnel_traffic": "Tunnel : {{name}}"
-    },
-    "config.open_firewall": "Ouvrir le port du pare-feu (firewalld)",
-    "config.open_firewall_desc": "Ouvre le port public automatiquement après la création",
-    "config.firewall_opened": "Port du pare-feu ouvert",
-    "config.firewall_failed": "Tunnel créé, mais le port du pare-feu n’a pas été ouvert"
+    }
   },
   "server": {
     "configuration": "Configuration du Serveur",
@@ -758,7 +758,16 @@
       "vhost_http_port": "Port d'Écoute HTTP",
       "subdomain_host": "Hôte de Sous-domaine",
       "quic_bind_port": "Port de Liaison Quic",
-      "kcp_bind_port": "Port de Liaison KCP"
+      "kcp_bind_port": "Port de Liaison KCP",
+      "port_quota_title": "Quota de ports",
+      "max_ports_per_client": "Ports max par client",
+      "max_ports_per_client_hint": "Tunnels max qu’un client peut créer, 1-65535",
+      "allow_ports": "Ports autorisés (allowPorts)",
+      "allow_ports_hint": "Port unique (ex. 5700) ou plage (ex. 10000-20000) ; vide = illimité",
+      "allow_ports_empty": "Aucune liste blanche (illimité)",
+      "add_single_port": "Ajouter un port",
+      "add_port_range": "Ajouter une plage",
+      "port_rule_invalid": "Règle de port invalide"
     },
     "create": {
       "submitting": "Création du serveur en cours...",
@@ -813,16 +822,7 @@
     "status_offline": "Hors Ligne",
     "status_error": "Erreur",
     "status_unknown": "Inconnu",
-    "status_pause": "En Pause",
-    "form.port_quota_title": "Quota de ports",
-    "form.max_ports_per_client": "Ports max par client",
-    "form.max_ports_per_client_hint": "Tunnels max qu’un client peut créer, 1-65535",
-    "form.allow_ports": "Ports autorisés (allowPorts)",
-    "form.allow_ports_hint": "Port unique (ex. 5700) ou plage (ex. 10000-20000) ; vide = illimité",
-    "form.allow_ports_empty": "Aucune liste blanche (illimité)",
-    "form.add_single_port": "Ajouter un port",
-    "form.add_port_range": "Ajouter une plage",
-    "form.port_rule_invalid": "Règle de port invalide"
+    "status_pause": "En Pause"
   },
   "auth": {
     "loggingIn": "Connexion en cours, veuillez patienter",

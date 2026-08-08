@@ -688,7 +688,11 @@
       "preflight_all_ok": "两端均通过，可以提交",
       "preflight_required": "请先检查端口，两端均通过后才可提交",
       "submit_pending": "提交中…",
-      "preflight_client_warning": "Client 端端口当前未监听（警告）：隧道可以创建，但本地服务启动前流量不可达"
+      "preflight_client_warning": "Client 端端口当前未监听（警告）：隧道可以创建，但本地服务启动前流量不可达",
+      "open_firewall": "开放服务器防火墙端口（firewalld）",
+      "open_firewall_desc": "创建成功后自动放行该公网端口，无需手动登录服务器",
+      "firewall_opened": "防火墙端口已开放",
+      "firewall_failed": "隧道已创建，但防火墙端口未开放"
     },
     "action": {
       "delete_success": "删除成功",
@@ -716,11 +720,7 @@
     "stats": {
       "label": "隧道名称",
       "tunnel_traffic": "隧道：{{name}}"
-    },
-    "config.open_firewall": "开放服务器防火墙端口（firewalld）",
-    "config.open_firewall_desc": "创建成功后自动放行该公网端口，无需手动登录服务器",
-    "config.firewall_opened": "防火墙端口已开放",
-    "config.firewall_failed": "隧道已创建，但防火墙端口未开放"
+    }
   },
   "server": {
     "configuration": "服务器配置",
@@ -762,7 +762,16 @@
       "vhost_http_port": "HTTP 监听端口",
       "subdomain_host": "域名后缀",
       "quic_bind_port": "Quic 监听端口",
-      "kcp_bind_port": "KCP 监听端口"
+      "kcp_bind_port": "KCP 监听端口",
+      "port_quota_title": "端口限制",
+      "max_ports_per_client": "单客户端最大隧道数（maxPortsPerClient）",
+      "max_ports_per_client_hint": "每个客户端最多可创建的隧道数量，范围 1-65535",
+      "allow_ports": "端口白名单（allowPorts）",
+      "allow_ports_hint": "支持单个端口（如 5700）或端口范围（如 10000-20000）；留空表示不限制",
+      "allow_ports_empty": "未配置白名单（不限制端口）",
+      "add_single_port": "添加单个端口",
+      "add_port_range": "添加范围",
+      "port_rule_invalid": "端口规则格式无效"
     },
     "create": {
       "submitting": "正在创建服务端...",
@@ -817,16 +826,7 @@
     "status_offline": "离线",
     "status_error": "错误",
     "status_unknown": "未知",
-    "status_pause": "已暂停",
-    "form.port_quota_title": "端口限制",
-    "form.max_ports_per_client": "单客户端最大隧道数（maxPortsPerClient）",
-    "form.max_ports_per_client_hint": "每个客户端最多可创建的隧道数量，范围 1-65535",
-    "form.allow_ports": "端口白名单（allowPorts）",
-    "form.allow_ports_hint": "支持单个端口（如 5700）或端口范围（如 10000-20000）；留空表示不限制",
-    "form.allow_ports_empty": "未配置白名单（不限制端口）",
-    "form.add_single_port": "添加单个端口",
-    "form.add_port_range": "添加范围",
-    "form.port_rule_invalid": "端口规则格式无效"
+    "status_pause": "已暂停"
   },
   "auth": {
     "loggingIn": "登录中，请稍候",
