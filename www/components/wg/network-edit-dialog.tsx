@@ -34,7 +34,7 @@ export default function NetworkEditDialog({
 					initial={{ name: network.name, cidr: network.cidr, aclString: network.acl ? JSON.stringify(network.acl, null, 2) : '' }}
 					disableFields={['cidr']}
 					submitText={t('wg.networkEdit.submit') as string}
-					onSuccess={() => { onSaved?.() }}
+					onSuccess={() => { onSaved?.(); onOpenChange(false) }}
 				/>
 			</DialogContent>
 		</Dialog>

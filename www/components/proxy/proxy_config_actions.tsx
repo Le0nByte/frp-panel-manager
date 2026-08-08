@@ -140,6 +140,7 @@ export function ProxyConfigActions({ serverID, clientID, name, row }: ProxyConfi
             defaultProxyConfig={JSON.parse(row.original.config || '{}') as TypedProxyConfig}
             overwrite={true}
             defaultOriginalProxyConfig={row.original.originalProxyConfig}
+            onSuccess={() => setProxyMutateFormOpen(false)}
           />
         </DialogContent>
       </Dialog>

@@ -22,6 +22,9 @@ import { IsIDValid } from '@/lib/consts'
 
 export const CreateServerDialog = ({ refetchTrigger }: { refetchTrigger?: (randStr: string) => void }) => {
   const { t } = useTranslation()
+  // Controlled dialog: closes + resets after a successful create
+  // (2026-08-08 fix — aligned with CreateClientDialog).
+  const [open, setOpen] = useState(false)
   const [serverID, setServerID] = useState<string | undefined>()
   const [serverIP, setServerIP] = useState<string | undefined>()
   const newServer = useMutation({
@@ -40,6 +43,9 @@ export const CreateServerDialog = ({ refetchTrigger }: { refetchTrigger?: (randS
       }
       toast(t('server.create.success'))
       refetchTrigger && refetchTrigger(JSON.stringify(Math.random()))
+      setOpen(false)
+      setServerID(undefined)
+      setServerIP(undefined)
     } catch (error) {
       toast(t('server.create.error'), {
         description: JSON.stringify(error),
@@ -48,7 +54,7 @@ export const CreateServerDialog = ({ refetchTrigger }: { refetchTrigger?: (randS
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
           {t('server.create.button')}

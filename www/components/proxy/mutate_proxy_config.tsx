@@ -52,9 +52,12 @@ export type ProxyConfigMutateDialogProps = {
 
 export const ProxyConfigMutateDialog = ({ ...props }: ProxyConfigMutateDialogProps) => {
   const { t } = useTranslation()
+  // Controlled dialog: closes automatically after a successful submit
+  // (2026-08-08 fix — previously the dialog stayed open forever).
+  const [open, setOpen] = useState(false)
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="w-fit">
           {t('proxy.config.create')}
@@ -65,7 +68,13 @@ export const ProxyConfigMutateDialog = ({ ...props }: ProxyConfigMutateDialogPro
           <DialogTitle>{t('proxy.config.create_proxy')}</DialogTitle>
           <DialogDescription>{t('proxy.config.create_proxy_description')}</DialogDescription>
         </DialogHeader>
-        <ProxyConfigMutateForm {...props} />
+        <ProxyConfigMutateForm
+          {...props}
+          onSuccess={() => {
+            setOpen(false)
+            props.onSuccess?.()
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

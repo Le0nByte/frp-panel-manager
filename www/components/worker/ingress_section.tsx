@@ -183,6 +183,12 @@ export function WorkerIngress({ workerId, refetchWorker, clients }: WorkerIngres
     refetchWorker()
   }
 
+  // Controlled dialogs for create/edit/delete ingress — each closes
+  // automatically after a successful submit (2026-08-08 fix).
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editingIngress, setEditingIngress] = useState<ProxyConfig | null>(null)
+  const [deletingIngress, setDeletingIngress] = useState<ProxyConfig | null>(null)
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-2">
@@ -191,7 +197,7 @@ export function WorkerIngress({ workerId, refetchWorker, clients }: WorkerIngres
             <Network className="h-5 w-5 mr-2 text-muted-foreground" />
             {t('worker.ingress.title')}
           </CardTitle>
-          <Dialog>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="h-8 text-xs">
                 {t('worker.ingress.create')}
@@ -202,7 +208,14 @@ export function WorkerIngress({ workerId, refetchWorker, clients }: WorkerIngres
                 <DialogTitle>{t('worker.ingress.create_title')}</DialogTitle>
                 <DialogDescription>{t('worker.ingress.create_description')}</DialogDescription>
               </DialogHeader>
-              <CreateWorkerIngressForm workerId={workerId} onSuccess={handleIngressCreated} clients={clients} />
+              <CreateWorkerIngressForm
+                workerId={workerId}
+                onSuccess={() => {
+                  handleIngressCreated()
+                  setCreateOpen(false)
+                }}
+                clients={clients}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -275,9 +288,9 @@ export function WorkerIngress({ workerId, refetchWorker, clients }: WorkerIngres
                     </div>
                   </div>
                   <div className="bg-muted/10 px-3 py-1.5 flex items-center justify-end gap-1 border-t">
-                    <Dialog>
+                    <Dialog open={editingIngress === ingress} onOpenChange={(o) => { if (!o) setEditingIngress(null) }}>
                       <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingIngress(ingress)}>
                           <Settings className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>
@@ -290,16 +303,20 @@ export function WorkerIngress({ workerId, refetchWorker, clients }: WorkerIngres
                           defaultProxyConfig={JSON.parse(ingress.config || '{}') as TypedProxyConfig}
                           overwrite={true}
                           defaultOriginalProxyConfig={ingress}
-                          onSuccess={handleIngressCreated}
+                          onSuccess={() => {
+                            handleIngressCreated()
+                            setEditingIngress(null)
+                          }}
                         />
                       </DialogContent>
                     </Dialog>
-                    <Dialog>
+                    <Dialog open={deletingIngress === ingress} onOpenChange={(o) => { if (!o) setDeletingIngress(null) }}>
                       <DialogTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => setDeletingIngress(ingress)}
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
@@ -313,7 +330,10 @@ export function WorkerIngress({ workerId, refetchWorker, clients }: WorkerIngres
                           clientId={ingress.clientId}
                           serverId={ingress.serverId}
                           proxyName={ingress.name}
-                          onSuccess={handleIngressCreated}
+                          onSuccess={() => {
+                            handleIngressCreated()
+                            setDeletingIngress(null)
+                          }}
                         />
                       </DialogContent>
                     </Dialog>
