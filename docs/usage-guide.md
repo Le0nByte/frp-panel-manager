@@ -210,14 +210,70 @@ sudo ./frp-panel server -s <SECRET> -i srv.beijing \
 
 ### 5.1 Linux 客户端（安装为 systemd 服务）
 
+推荐把身份和地址写进 `/etc/frpp/.env`（密钥不进服务文件，权限 600）：
+
 ```bash
-sudo ./frp-panel install client -s <SECRET> -i client.nas.home \
+cd ~/Downloads   # 换成下载文件实际所在目录
+sudo install -m 0755 frp-panel-<版本>-linux-amd64 /usr/local/bin/frp-panel
+sudo mkdir -p /etc/frpp
+sudo tee /etc/frpp/.env > /dev/null <<'EOF'
+CLIENT_ID=client.nas.home
+CLIENT_SECRET=<SECRET>
+CLIENT_API_URL=https://<公网IP>:9443
+CLIENT_RPC_URL=grpc://<公网IP>:9101
+CLIENT_TLS_INSECURE_SKIP_VERIFY=true
+EOF
+sudo chmod 600 /etc/frpp/.env
+
+sudo frp-panel install client   # 只写 unit + enable，不会启动
+sudo frp-panel start            # 必须再执行一次才真正运行
+```
+
+要点（均已实测）：
+
+| 事实 | 说明 |
+|:--|:--|
+| 服务名是 `frpp` | `defs.DefaultServiceName`；用 `systemctl status frpp` 查看 |
+| `install` 不会启动服务 | kardianos/service 的 systemd 分支只做「写 unit + `systemctl enable` + `daemon-reload`」；执行后 `is-enabled=enabled` 但 `is-active=inactive` |
+| `CLIENT_TLS_INSECURE_SKIP_VERIFY` 没有命令行参数 | 只能通过 env / `.env` 文件传入；默认 `false`，自签证书必须显式设 `true` |
+| 配置优先级 | 进程环境变量（`/etc/sysconfig/frpp`）> 二进制同目录 `.env` > `/etc/frpp/.env`；`godotenv.Load` 不覆盖已存在的变量 |
+| 崩溃重启间隔默认 120s | unit 模板固定 `Restart=always` + `RestartSec=120`；要更快就加 drop-in（见下方代码块），`install` 不会影响 drop-in |
+| `install` 遇已存在的 unit 会报错 | kardianos/service 先 `os.Stat` unit 文件，存在即返回 `Init already exists`，不覆盖；换二进制路径要先 `uninstall` 再 `install` |
+| unit 权限 644 | 带 `-s <SECRET>` 安装会把密钥明文写进 `ExecStart`，同机任何用户可读；多用户机器请用上面的 `.env` 方式 |
+| `uninstall` 保留二进制 | 只删 unit（`disable` + 删文件）；二进制需自己删 |
+| 非 root 安装会失败 | `open /etc/systemd/system/frpp.service: permission denied`，必须 `sudo` |
+
+也可以直接带参数安装（快，但密钥进 unit）：
+
+```bash
+sudo frp-panel install client -s <SECRET> -i client.nas.home \
   --api-url https://<公网IP>:9443 \
   --rpc-url grpc://<公网IP>:9101
-# 或直接前台运行：
-sudo CLIENT_TLS_INSECURE_SKIP_VERIFY=true ./frp-panel client -s <SECRET> -i client.nas.home \
+sudo frp-panel start
+```
+
+无 systemd 的环境（老容器 / 精简系统）用前台方式，自己接守护：
+
+```bash
+nohup env CLIENT_TLS_INSECURE_SKIP_VERIFY=true \
+  /usr/local/bin/frp-panel client -s <SECRET> -i client.nas.home \
   --api-url https://<公网IP>:9443 \
-  --rpc-url grpc://<公网IP>:9101
+  --rpc-url grpc://<公网IP>:9101 \
+  > /var/log/frpp-client.log 2>&1 &
+```
+
+> 这种写法密钥会出现在进程命令行（同机任何用户 `ps` 可见）与 shell 历史中，仅建议单用户/可信机器使用；多用户机器请用 systemd + `/etc/frpp/.env`（600）。
+
+需要更快的崩溃自动拉起时，加一个 drop-in（不改动 `install` 生成的 unit）：
+
+```bash
+sudo mkdir -p /etc/systemd/system/frpp.service.d
+sudo tee /etc/systemd/system/frpp.service.d/override.conf > /dev/null <<'EOF'
+[Service]
+RestartSec=5
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart frpp
 ```
 
 ### 5.2 Windows 客户端
@@ -255,7 +311,11 @@ chmod 755 /data/adb/service.d/frpp-client.sh
 
 - Web UI「客户端」列表该客户端显示在线；
 - Master 总览「客户端总数」+1；
-- 客户端日志出现 `client get server register event success`。
+- Linux systemd：`systemctl is-active frpp` → `active`，`systemctl is-enabled frpp` → `enabled`；
+- 客户端日志（`journalctl -u frpp -n 40 --no-pager`）依次出现：
+  - `load env file success: /etc/frpp/.env`（配置读到了）
+  - `start to run client`
+  - `client get server register envent success`（Master 已认；`envent` 是上游源码里的拼写，搜索时用 `register` 更稳）
 
 ---
 
@@ -324,6 +384,21 @@ Master 的 `MASTER_RPC_HOST` 应设为 `127.0.0.1`（内部自连地址），不
 
 **Q8：如何备份？**
 使用 `deploy/backup-aliyun.sh` / `deploy/rollback-aliyun.sh`（含 SQLite 快照、manifest 校验），详见 `docs/ops-runbook.md`。
+
+**Q9：Linux 上 `frp-panel install client` 执行成功，但服务没跑起来？**
+预期行为。`install` 只写 unit 文件 + `systemctl enable`（开机自启），不会启动；必须再执行 `sudo frp-panel start`（或 `systemctl start frpp`）。
+
+**Q10：Linux 改了 `/etc/frpp/.env` 但不生效？**
+配置只在进程启动时读一次，改完要 `sudo frp-panel restart`。若仍是旧值，检查是否被更高优先级来源覆盖：进程环境变量（`/etc/sysconfig/frpp`）> 二进制同目录 `.env` > `/etc/frpp/.env`。
+
+**Q11：Linux 服务 `start` 后仍是 `inactive`，日志也没有输出？**
+看 `systemctl status frpp`。若出现 `Condition: start condition failed ... ConditionFileIsExecutable`，说明 unit 里记录的二进制路径已不存在或丢了执行权限（常见于移动/替换二进制后）。注意直接重新 `install` 会报 `Init already exists`（kardianos/service 在 unit 已存在时不覆盖），必须先卸载再装：
+
+```bash
+sudo frp-panel uninstall
+sudo frp-panel install client   # 在新二进制所在目录执行，unit 会按其真实路径重建
+sudo frp-panel start
+```
 
 ---
 
