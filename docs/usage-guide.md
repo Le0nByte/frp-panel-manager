@@ -60,7 +60,12 @@ FRP-Panel-Manager 帮你管理 FRP 内网穿透。先认识三个角色：
 
 ### 1.3 方式 B：手动部署（理解原理）
 
-把 `frp-panel` 二进制（Linux amd64/arm64）上传到服务器：
+把 `frp-panel` 二进制（Linux amd64/arm64）上传到服务器。二进制来源有两种：
+
+- 推 `v*` tag 后从本仓库 Release 下载（产物名 `frp-panel-<版本>-linux-amd64` / `-linux-arm64`）；仓库为私有，需要有仓库权限才能下载；
+- 本地自行交叉编译：`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o frp-panel-linux-amd64 ./cmd/frpp`（前端需先 `cd www && pnpm build` 生成 `cmd/frpp/out`）。
+
+> 不要用上游 `VaalaCat/frp-panel` 的 install.sh / install.ps1 一键脚本或其 Release 二进制：那是上游版本，不含本仓库的端口中心、事务安全与审计能力，客户端还会缺 `EVENT_INSPECT_PORTS` 等本仓库新增的 RPC，端口扫描将不可用。
 
 ```bash
 sudo mkdir -p /opt/frp-panel/bin /opt/frp-panel/data /opt/frp-panel/secrets /etc/frp-panel

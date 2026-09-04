@@ -1,4 +1,11 @@
 # Download latest release from github
+#
+# ⚠️ 上游遗留脚本，本仓库（fork）不使用，也不要用它安装本平台的客户端。
+# 该脚本从上游 VaalaCat/frp-panel 的 Release 下载二进制，那是上游版本，
+# 不含本仓库的端口中心、事务安全与审计能力，客户端还会缺 EVENT_INSPECT_PORTS
+# 等本仓库新增的 RPC，端口扫描将不可用。另外它默认装到 C:\frpp\，与本仓库
+# 文档推荐的 D:\frp-panel\ 不一致。
+# 本仓库的安装步骤见 docs/usage-guide.md §1.3 与 WebUI 侧边栏的「操作指南」页。
 if($PSVersionTable.PSVersion.Major -lt 5){
     Write-Host "Require PS >= 5,your PSVersion:"$PSVersionTable.PSVersion.Major -BackgroundColor DarkGreen -ForegroundColor White
     exit

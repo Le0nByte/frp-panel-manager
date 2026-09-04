@@ -112,11 +112,8 @@
     "secret": "Clé Secrète (Cliquez pour la Commande de Démarrage)",
     "install": {
       "title": "Commande d'Installation",
-      "description": "Sélectionnez votre système d'exploitation et copiez la commande d'installation",
-      "use_github_proxy_url": "Utiliser l'URL Proxy GitHub",
-      "github_proxy_url": "URL Proxy GitHub",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "Consultez le Guide pour installer le client (systemd Linux / démarrage auto Windows)",
+      "open_guide": "Ouvrir le guide"
     },
     "need_upgrade": "Mise à Niveau Requise",
     "temp_node": "Temporaire",
@@ -146,7 +143,6 @@
       "copy_success": "Commande copiée avec succès. Si la copie échoue, veuillez cliquer sur le champ ID ou Clé Secrète pour copier manuellement",
       "copy_failed": "Échec de l'obtention des informations de la plateforme. Si la copie échoue, veuillez cliquer sur le champ ID ou Clé Secrète pour copier manuellement",
       "copy_start_command": "Copier la Commande de Démarrage",
-      "copy_install_command": "Copier la Commande d'Installation du Service",
       "edit_config": "Modifier la Configuration",
       "download_failed": "Échec de l'obtention des informations de la plateforme",
       "download_config": "Télécharger la Configuration",
@@ -155,7 +151,8 @@
       "upgrade": "Mise à Niveau",
       "pause": "Pause",
       "resume": "Reprendre",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "open_guide": "Ouvrir le guide d'installation"
     },
     "join": {
       "button": "Configuration par Lots",
@@ -199,7 +196,8 @@
     "failed": "Échec",
     "clientType": "Type de Client",
     "disconnect": "Déconnecter",
-    "connect": "Connecter"
+    "connect": "Connecter",
+    "binary_from_ops": "(récupérez le binaire via votre canal interne, ou consultez le Guide)"
   },
   "table": {
     "pagination": {
@@ -789,9 +787,8 @@
     "secret": "Secret (Cliquez pour la commande de démarrage)",
     "install": {
       "title": "Commande d'Installation",
-      "description": "Veuillez sélectionner votre système d'exploitation et copier la commande d'installation correspondante",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "Consultez le Guide pour installer le serveur",
+      "open_guide": "Ouvrir le guide"
     },
     "start": {
       "title": "Commande de Démarrage",

@@ -20,35 +20,37 @@ Before deploying the Client, ensure the corresponding Server’s configuration i
 
 ## Deploying on Linux
 
+> ⚠️ **Do not use the upstream `VaalaCat/frp-panel` `install.sh` / `install.ps1` one-liners, and do not use upstream Release binaries.**
+> They install the upstream build, which lacks this fork's port center, transactional safety and audit features. The client would also be missing fork-only RPCs such as `EVENT_INSPECT_PORTS`, so port scanning stops working.
+> The one-click install buttons have been removed from this fork's WebUI; full steps now live on the **Guide** page. Get the binary from this repository's Release (repository access required) or cross-compile it yourself — see [usage-guide.md §1.3](../usage-guide.md) and the Guide page in the WebUI sidebar.
+
 ### Direct Execution
 
-1. Create a dedicated directory on your system.  
-2. In the Master’s Web UI, click the **ID (show install command)** field for your Client. Copy the Linux install command, for example:
+1. Create a dedicated directory and drop in the `frp-panel` binary built from this repository:
 
    ```bash
-   curl -fSL https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh \
-     | bash -s -- client -s abc -i user.c.client1 \
+   sudo mkdir -p /opt/frp-panel && cd /opt/frp-panel
+   sudo cp ~/Downloads/frp-panel-linux-amd64 ./frp-panel
+   sudo chmod +x ./frp-panel
+   ```
+
+2. Get the startup command from the Master's Web UI: click the **Key (show startup command)** field for your Client. It looks like:
+
+   ```bash
+   ./frp-panel client -s abc -i user.c.client1 \
      --api-url https://frpp.example.com \
      --rpc-url grpc://frpp-rpc.example.com:9101
    ```
 
-3. If you’re in mainland China, you may want to use a GitHub proxy. For example, with `ghfast`:
+3. If you use a reverse-proxy with TLS (443 → Master 9100/API), point `--api-url` at port 443:
 
    ```bash
-   curl -fSL https://ghfast.top/https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh \
-     | bash -s -- --github-proxy https://ghfast.top/ client -s abc -i user.c.client1 \
-     --api-url https://frpp.example.com \
-     --rpc-url grpc://frpp-rpc.example.com:9101
-   ```
-
-4. If you use a reverse-proxy with TLS (443 → Master 9100/API), adjust the command:
-
-   ```bash
-   curl -fSL https://ghfast.top/https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh \
-     | bash -s -- --github-proxy https://ghfast.top/ client -s abc -i user.c.client1 \
+   ./frp-panel client -s abc -i user.c.client1 \
      --api-url https://frpp.example.com:443 \
      --rpc-url grpc://frpp-rpc.example.com:9101
    ```
+
+Passing `-s <secret>` on the command line exposes the secret through `ps` output and shell history. For production, keep it in `/etc/frpp/.env` (mode 600) instead — see the Linux tab of the Guide page.
 
 ### Docker Compose Deployment
 

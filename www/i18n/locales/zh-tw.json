@@ -112,11 +112,8 @@
     "secret": "密鑰 (點擊查看啟動命令)",
     "install": {
       "title": "安裝命令",
-      "description": "請選擇您的操作系統並覆制相應的安裝命令",
-      "use_github_proxy_url": "使用 GitHub 代理",
-      "github_proxy_url": "GitHub 代理 URL",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "客戶端安裝步驟（含 Linux systemd / Windows 開機自啟）請看「操作指南」",
+      "open_guide": "打開操作指南"
     },
     "need_upgrade": "需要升級",
     "temp_node": "臨時",
@@ -146,7 +143,6 @@
       "copy_success": "命令覆制成功，如果覆制失敗，請點擊 ID/密鑰 字段手動覆制",
       "copy_failed": "獲取平台信息失敗，如果覆制不成功，請點擊 ID/密鑰 字段手動覆制",
       "copy_start_command": "覆制啟動命令",
-      "copy_install_command": "覆制服務安裝命令",
       "edit_config": "修改配置",
       "download_failed": "獲取平台信息失敗",
       "download_config": "下載配置",
@@ -155,7 +151,8 @@
       "upgrade": "升級客戶端",
       "pause": "暫停",
       "resume": "啟動",
-      "delete": "刪除"
+      "delete": "刪除",
+      "open_guide": "查看安裝指南"
     },
     "join": {
       "button": "批量配置",
@@ -199,7 +196,8 @@
     "failed": "失敗",
     "clientType": "客戶端類型",
     "disconnect": "斷開連接",
-    "connect": "連接"
+    "connect": "連接",
+    "binary_from_ops": "（二進制請從內部渠道獲取，或參考側邊欄「操作指南」）"
   },
   "table": {
     "pagination": {
@@ -779,9 +777,8 @@
     "secret": "密鑰 (點擊查看啟動命令)",
     "install": {
       "title": "安裝命令",
-      "description": "請選擇您的操作系統並覆制相應的安裝命令",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "服務端安裝步驟請看「操作指南」",
+      "open_guide": "開啟操作指南"
     },
     "start": {
       "title": "啟動命令",

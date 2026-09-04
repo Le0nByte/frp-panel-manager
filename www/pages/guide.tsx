@@ -40,8 +40,7 @@ export default function GuidePage() {
             <Info className="h-4 w-4" />
             <AlertTitle>前置条件（两种系统通用）</AlertTitle>
             <AlertDescription>
-              Master 管理端已部署并运行在 <code>【你的公网IP】:9443</code>，且已注册管理员账号。
-              如果还没有，请先完成部署和注册。
+              Master 管理端已部署并运行在 <code>【你的公网IP】:9443</code>，且已注册管理员账号。如果还没有，请先完成部署和注册。
             </AlertDescription>
           </Alert>
 
@@ -66,8 +65,7 @@ export default function GuidePage() {
                     添加内网机器为客户端（Linux 版）
                   </CardTitle>
                   <CardDescription>
-                    把内网 Linux 机器（NAS、树莓派、办公室服务器等，无公网 IP）接入 frp-panel，
-                    安装为 systemd 服务并开机自启。全程约 5 分钟。
+                    把内网 Linux 机器（NAS、树莓派、办公室服务器等，无公网 IP）接入 frp-panel，安装为 systemd 服务并开机自启。全程约 5 分钟。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -79,8 +77,15 @@ export default function GuidePage() {
                       <Code>{`uname -m
 # x86_64  → 下载 linux-amd64（绝大多数服务器 / PC）
 # aarch64 → 下载 linux-arm64（树莓派 4/5、ARM 云主机、Android）`}</Code>
-                      <p>打开 Release 页面下载对应架构的文件：</p>
+                      <p>打开 Release 页面下载对应架构的文件（仓库为私有，需要仓库权限）：</p>
                       <Code>{`https://github.com/NeitherCandiDa/frp-panel-manager/releases（下载最新版）`}</Code>
+                      <Alert className="border-amber-300 bg-amber-50">
+                        <AlertTitle>⚠ 不要用上游一键安装脚本</AlertTitle>
+                        <AlertDescription>
+                          网上流传的 <code>curl .../VaalaCat/frp-panel/main/install.sh | bash</code>{' '}
+                          能跑通，但装的是上游版本，不含本平台的端口中心、事务安全与审计能力，端口扫描（<code>EVENT_INSPECT_PORTS</code>）也会失效。没有仓库权限时，请找管理员取二进制。
+                        </AlertDescription>
+                      </Alert>
                       <p>
                         文件名形如 <code>frp-panel-最新版-linux-amd64</code>，在下载文件所在目录（浏览器下载通常是{' '}
                         <code>~/Downloads</code>）执行，安装到 <code>/usr/local/bin</code> 并确认能运行：
@@ -117,16 +122,14 @@ frp-panel version`}</Code>
                           点击 <strong>提交</strong> 按钮
                         </li>
                         <li>
-                          在该行右侧点 <strong>⋮</strong> 操作菜单 → <strong>复制启动命令</strong>，
-                          从里面取出 <code>-s</code> 后面那串密钥备用
+                          在该行右侧点 <strong>⋮</strong> 操作菜单 → <strong>复制启动命令</strong>，从里面取出 <code>-s</code> 后面那串密钥备用
                         </li>
                       </ol>
                       <Alert className="border-amber-300 bg-amber-50">
                         <AlertTitle>⚠ 命令里的地址不能直接用</AlertTitle>
                         <AlertDescription>
                           复制出来的命令，<code>--api-url</code> / <code>--rpc-url</code> 可能是{' '}
-                          <code>127.0.0.1</code>（内网机器连不上）。下一步统一填公网地址：
-                          <code className="mx-1">https://【你的公网IP】:9443</code> 和
+                          <code>127.0.0.1</code>（内网机器连不上）。下一步统一填公网地址：<code className="mx-1">https://【你的公网IP】:9443</code> 和
                           <code className="mx-1">grpc://【你的公网IP】:9101</code>。
                         </AlertDescription>
                       </Alert>
@@ -150,8 +153,7 @@ CLIENT_TLS_INSECURE_SKIP_VERIFY=true
 EOF
 sudo chmod 600 /etc/frpp/.env`}</Code>
                       <p>
-                        <code>CLIENT_TLS_INSECURE_SKIP_VERIFY</code> 默认是 <code>false</code>，
-                        自签证书部署必须显式写 <code>true</code>，否则连接会报{' '}
+                        <code>CLIENT_TLS_INSECURE_SKIP_VERIFY</code> 默认是 <code>false</code>，自签证书部署必须显式写 <code>true</code>，否则连接会报{' '}
                         <code>certificate signed by unknown authority</code>。
                       </p>
                     </div>
@@ -167,8 +169,7 @@ sudo frp-panel start`}</Code>
                         <AlertTitle>⚠ install 不会自动启动</AlertTitle>
                         <AlertDescription>
                           <code>install</code> 只做两件事：写 <code>/etc/systemd/system/frpp.service</code> +{' '}
-                          <code>systemctl enable</code>（开机自启）。服务此时仍是 <code>inactive</code>，
-                          必须再执行一次 <code>start</code> 才会真正跑起来。
+                          <code>systemctl enable</code>（开机自启）。服务此时仍是 <code>inactive</code>，必须再执行一次 <code>start</code> 才会真正跑起来。
                         </AlertDescription>
                       </Alert>
                       <p>
@@ -258,8 +259,7 @@ client get server register envent success`}</Code>
                     <StepTitle n={7}>崩溃后更快自动拉起（可选，建议做）</StepTitle>
                     <div className="ml-9 space-y-2 text-sm text-muted-foreground">
                       <p>
-                        默认 unit 是 <code>Restart=always</code> + <code>RestartSec=120</code>，
-                        进程异常退出后要等 <strong>2 分钟</strong>才重启。加个 drop-in 改成 5 秒：
+                        默认 unit 是 <code>Restart=always</code> + <code>RestartSec=120</code>，进程异常退出后要等 <strong>2 分钟</strong>才重启。加个 drop-in 改成 5 秒：
                       </p>
                       <Code>{`sudo mkdir -p /etc/systemd/system/frpp.service.d
 sudo tee /etc/systemd/system/frpp.service.d/override.conf > /dev/null <<'EOF'
@@ -299,8 +299,7 @@ sudo frp-panel start`}</Code>
                           <code>ExecStart</code>，而该文件权限是 <code>644</code>（机器上任何用户都能读到）。
                         </li>
                         <li>
-                          命令行参数里没法传 <code>CLIENT_TLS_INSECURE_SKIP_VERIFY</code>，
-                          自签证书场景仍然要额外建 <code>/etc/frpp/.env</code> 写这一行。
+                          命令行参数里没法传 <code>CLIENT_TLS_INSECURE_SKIP_VERIFY</code>，自签证书场景仍然要额外建 <code>/etc/frpp/.env</code> 写这一行。
                         </li>
                       </ol>
                       多用户机器建议用上面第 3 步的 <code>.env</code> 方式。
@@ -345,23 +344,19 @@ sudo frp-panel start`}</Code>
                     <p>
                       看 <code>systemctl status frpp</code>，如果出现{' '}
                       <code>Condition: start condition failed ... ConditionFileIsExecutable</code>，说明 unit
-                      里记录的二进制路径已经不存在或没有执行权限（常见于把二进制挪了位置）。
-                      注意直接重新 <code>install</code> 会报 <code>Init already exists</code>（unit 已存在时不覆盖），
-                      必须先卸载再装：
+                      里记录的二进制路径已经不存在或没有执行权限（常见于把二进制挪了位置）。注意直接重新 <code>install</code> 会报 <code>Init already exists</code>（unit 已存在时不覆盖），必须先卸载再装：
                     </p>
                     <Code>{`sudo frp-panel uninstall
 sudo frp-panel install client
 sudo frp-panel start`}</Code>
                     <p>
-                      在新二进制所在目录执行（或让它在 <code>PATH</code> 里），
-                      <code>install</code> 会按当前可执行文件的真实路径重建 unit。
+                      在新二进制所在目录执行（或让它在 <code>PATH</code> 里），<code>install</code> 会按当前可执行文件的真实路径重建 unit。
                     </p>
                   </div>
                   <div>
                     <p className="font-medium text-foreground">改了 .env 但不生效</p>
                     <p>
-                      配置只在启动时读一次，改完必须 <code>sudo frp-panel restart</code>。另外优先级是：
-                      系统环境变量（<code>/etc/sysconfig/frpp</code>）&gt; 二进制同目录的 <code>.env</code> &gt;{' '}
+                      配置只在启动时读一次，改完必须 <code>sudo frp-panel restart</code>。另外优先级是：系统环境变量（<code>/etc/sysconfig/frpp</code>）&gt; 二进制同目录的 <code>.env</code> &gt;{' '}
                       <code>/etc/frpp/.env</code>；同名变量以优先级高的为准。如果二进制目录下有历史遗留的{' '}
                       <code>.env</code>，先把它删掉。
                     </p>
@@ -377,8 +372,7 @@ sudo frp-panel start`}</Code>
   --rpc-url grpc://【你的公网IP】:9101 \\
   > /var/log/frpp-client.log 2>&1 &`}</Code>
                     <p>
-                      注意：这种写法密钥会出现在进程命令行（同机任何用户 <code>ps</code> 可见）和 shell 历史里，
-                      只建议单用户/可信机器用。多用户机器优先用上面的 systemd + <code>/etc/frpp/.env</code>（600）方式。
+                      注意：这种写法密钥会出现在进程命令行（同机任何用户 <code>ps</code> 可见）和 shell 历史里，只建议单用户/可信机器用。多用户机器优先用上面的 systemd + <code>/etc/frpp/.env</code>（600）方式。
                     </p>
                   </div>
                 </CardContent>
@@ -402,7 +396,7 @@ sudo frp-panel start`}</Code>
                   <div className="space-y-2">
                     <StepTitle n={1}>下载客户端二进制</StepTitle>
                     <div className="ml-9 space-y-2 text-sm text-muted-foreground">
-                      <p>打开 Release 页面下载 Windows 版客户端：</p>
+                      <p>打开 Release 页面下载 Windows 版客户端（仓库为私有，需要仓库权限；没有权限请找管理员取）：</p>
                       <Code>{`https://github.com/NeitherCandiDa/frp-panel-manager/releases（下载最新版）`}</Code>
                       <p>
                         下载 <code>frp-panel-最新版-windows-amd64.exe</code>，将其重命名为{' '}

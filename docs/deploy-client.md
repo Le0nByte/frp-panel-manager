@@ -20,27 +20,33 @@ Client 推荐使用 docker 部署
 
 ## 在 Linux 上部署
 
+> ⚠️ **不要使用上游 `VaalaCat/frp-panel` 的 `install.sh` / `install.ps1` 一键脚本，也不要用上游 Release 的二进制。**
+> 那是上游版本，不含本仓库的端口中心、事务安全与审计能力，客户端还会缺 `EVENT_INSPECT_PORTS` 等本仓库新增的 RPC，端口扫描将不可用。
+> 本仓库的 WebUI 已移除一键安装按钮，改为在「操作指南」页给出完整步骤。二进制请从本仓库 Release（需仓库权限）获取或自行交叉编译，详见 [usage-guide.md §1.3](./usage-guide.md) 与 WebUI 侧边栏的「操作指南」。
+
 ### 直接运行
 
-首先在系统上创建一个专用目录
-
-点击对应客户端的 `ID (点击查看安装命令)` 一列，弹出不同系统的安装命令，粘贴到对应终端即可安装，这里以 Linux 为例
-
-```
-curl -fSL https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh | bash -s --  client -s abc -i user.c.client1 --api-url https://frpp.example.com --rpc-url grpc://frpp-rpc.example.com:9101
-```
-
-如果你在国内，可以在WebUI中配置增加github加速到安装脚本前，以ghfast为例，配置后复制的内容可能类似下方：
+首先在系统上创建一个专用目录，把本仓库构建出的 `frp-panel` 二进制放进去并赋予执行权限：
 
 ```bash
-curl -fSL https://ghfast.top/https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh | bash -s -- --github-proxy https://ghfast.top/  client -s abc -i user.c.client1 --api-url https://frpp.example.com --rpc-url grpc://frpp-rpc.example.com:9101
+sudo mkdir -p /opt/frp-panel && cd /opt/frp-panel
+sudo cp ~/Downloads/frp-panel-linux-amd64 ./frp-panel
+sudo chmod +x ./frp-panel
 ```
 
-注意，如果你使用 反向代理 TLS，需要以 http 上游的形式，外部 443 端口代理 `master` 的 9100(API) 端口，且修改启动/安装命令类似如下：
+启动命令从 WebUI 获取：点击对应客户端的 `密钥 (点击查看启动命令)` 一列，复制出来的命令形如：
 
 ```bash
-curl -fSL https://ghfast.top/https://raw.githubusercontent.com/VaalaCat/frp-panel/main/install.sh | bash -s -- --github-proxy https://ghfast.top/  client -s abc -i user.c.client1 --api-url https://frpp.example.com:443 --rpc-url grpc://frpp-rpc.example.com:9101
+./frp-panel client -s abc -i user.c.client1 --api-url https://frpp.example.com --rpc-url grpc://frpp-rpc.example.com:9101
 ```
+
+注意，如果你使用 反向代理 TLS，需要以 http 上游的形式，外部 443 端口代理 `master` 的 9100(API) 端口，并把 `--api-url` 改为带 443 端口的形式：
+
+```bash
+./frp-panel client -s abc -i user.c.client1 --api-url https://frpp.example.com:443 --rpc-url grpc://frpp-rpc.example.com:9101
+```
+
+命令行直接带 `-s <密钥>` 会让密钥出现在 `ps` 输出和 shell 历史里。生产环境请改用 `/etc/frpp/.env`（权限 600）承载密钥，做法见「操作指南」的 Linux 页签。
 
 ### Docker Compose 部署
 

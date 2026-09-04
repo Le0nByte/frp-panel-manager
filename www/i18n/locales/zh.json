@@ -112,11 +112,8 @@
     "secret": "密钥 (点击查看启动命令)",
     "install": {
       "title": "安装命令",
-      "description": "请选择您的操作系统并复制相应的安装命令",
-      "use_github_proxy_url": "使用 GitHub 代理",
-      "github_proxy_url": "GitHub 代理 URL",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "客户端安装步骤（含 Linux systemd / Windows 开机自启）请看「操作指南」",
+      "open_guide": "打开操作指南"
     },
     "need_upgrade": "需要升级",
     "temp_node": "临时",
@@ -146,7 +143,6 @@
       "copy_success": "命令复制成功，如果复制失败，请点击 ID/密钥 字段手动复制",
       "copy_failed": "获取平台信息失败，如果复制不成功，请点击 ID/密钥 字段手动复制",
       "copy_start_command": "复制启动命令",
-      "copy_install_command": "复制服务安装命令",
       "edit_config": "修改配置",
       "download_failed": "获取平台信息失败",
       "download_config": "下载配置",
@@ -155,7 +151,8 @@
       "upgrade": "升级 frp-panel",
       "pause": "暂停",
       "resume": "启动",
-      "delete": "删除"
+      "delete": "删除",
+      "open_guide": "查看安装指南"
     },
     "join": {
       "button": "批量配置",
@@ -199,7 +196,8 @@
     "failed": "失败",
     "clientType": "客户端类型",
     "disconnect": "断开连接",
-    "connect": "连接"
+    "connect": "连接",
+    "binary_from_ops": "（二进制请从内部渠道获取，或参考侧边栏「操作指南」）"
   },
   "table": {
     "pagination": {
@@ -793,9 +791,8 @@
     "secret": "密钥 (点击查看启动命令)",
     "install": {
       "title": "安装命令",
-      "description": "请选择您的操作系统并复制相应的安装命令",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "服务端安装步骤请看「操作指南」",
+      "open_guide": "打开操作指南"
     },
     "start": {
       "title": "启动命令",

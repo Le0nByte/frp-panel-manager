@@ -112,11 +112,8 @@
     "secret": "Secret Key (Click for Start Command)",
     "install": {
       "title": "Installation Command",
-      "description": "Select your operating system and copy the installation command",
-      "use_github_proxy_url": "Use GitHub Proxy URL",
-      "github_proxy_url": "GitHub Proxy URL",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "See the Guide page for client install steps (Linux systemd / Windows autostart)",
+      "open_guide": "Open the guide"
     },
     "need_upgrade": "Need Upgrade",
     "temp_node": "Temporary",
@@ -146,7 +143,6 @@
       "copy_success": "Command copied successfully. If copying fails, please click the ID or Secret Key field to copy manually",
       "copy_failed": "Failed to get platform info. If copying fails, please click the ID or Secret Key field to copy manually",
       "copy_start_command": "Copy Start Command",
-      "copy_install_command": "Copy Install Service Command",
       "edit_config": "Edit Configuration",
       "download_failed": "Failed to get platform info",
       "download_config": "Download Configuration",
@@ -155,7 +151,8 @@
       "upgrade": "Upgrade frp-panel",
       "pause": "Pause",
       "resume": "Resume",
-      "delete": "Delete"
+      "delete": "Delete",
+      "open_guide": "Open install guide"
     },
     "join": {
       "button": "Batch Configuration",
@@ -199,7 +196,8 @@
     "failed": "Failed",
     "clientType": "Client Type",
     "disconnect": "Disconnect",
-    "connect": "Connect"
+    "connect": "Connect",
+    "binary_from_ops": "(get the binary from your internal channel, or see the sidebar Guide)"
   },
   "table": {
     "pagination": {
@@ -798,9 +796,8 @@
     "secret": "Secret (Click for start command)",
     "install": {
       "title": "Install Command",
-      "description": "Please select your operating system and copy the corresponding installation command",
-      "windows": "Windows",
-      "linux": "Linux"
+      "description": "See the Guide page for server install steps",
+      "open_guide": "Open the guide"
     },
     "start": {
       "title": "Start Command",

@@ -1,5 +1,11 @@
 #!/usr/bin/env /bin/bash
 
+# ⚠️ 上游遗留脚本，本仓库（fork）不使用，也不要用它安装本平台的客户端。
+# 该脚本从上游 VaalaCat/frp-panel 的 Release 下载二进制，那是上游版本，
+# 不含本仓库的端口中心、事务安全与审计能力，客户端还会缺 EVENT_INSPECT_PORTS
+# 等本仓库新增的 RPC，端口扫描将不可用。
+# 本仓库的安装步骤见 docs/usage-guide.md §1.3 与 WebUI 侧边栏的「操作指南」页。
+
 OS=$(uname -s)
 ARCH=$(uname -m)
 
