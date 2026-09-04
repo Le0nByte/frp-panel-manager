@@ -234,4 +234,55 @@ func TestFRPCompleteDefaultsAreTheBrokenValues(t *testing.T) {
 	require.NoError(t, cfg.Complete())
 	require.Equal(t, "0.0.0.0", cfg.ServerAddr)
 	require.Equal(t, 7000, cfg.ServerPort)
+	// ...including loginFailExit=true, which is why a candidate config that
+	// never set the field arrives at the agent as "exit on first login
+	// failure". See TestInjectFRPClientConfigForcesLoginRetry.
+	require.Equal(t, true, *cfg.LoginFailExit)
+}
+
+// A master-managed agent must NEVER exit because one login failed.
+//
+// frp's Complete() defaults loginFailExit to true, so every candidate config
+// that does not set the field explicitly tells the agent: if the first login
+// fails, cancel the service and stop retrying (client/service.go:212 →
+// loopLoginUntilSuccess(..., firstLoginExit=true) → svr.cancel()). Under
+// frp-panel that is the wrong policy: the master hands out the connection
+// identity, so a transient failure (master restarting, frps bindPort briefly
+// taken, network blip, a config the master has since fixed) permanently kills
+// a tunnel that would have worked seconds later. Recovery then depends on
+// something noticing the dead handler.
+//
+// With false, the same call site keeps retrying with exponential backoff
+// (1s × 2, jitter 0.1, capped at 10s), and once a control is established
+// keepControllerWorking() reconnects forever. Self-healing, no supervision
+// needed.
+//
+// This is a POLICY the injector owns, not a user preference: the field is not
+// exposed in the tunnel UI, and both the pull path and the apply path go
+// through here, so pinning it once covers every agent-facing config.
+func TestInjectFRPClientConfigForcesLoginRetry(t *testing.T) {
+	t.Run("candidate that never set the field", func(t *testing.T) {
+		// candidateUninjected carries loginFailExit:true explicitly, mirroring
+		// what Complete() bakes into every stored candidate.
+		raw, err := InjectFRPClientConfig([]byte(candidateUninjected), baseInjection())
+		require.NoError(t, err)
+		require.Equal(t, false, parseInjected(t, raw)["loginFailExit"],
+			"a managed agent must retry, never exit on a failed login")
+	})
+	t.Run("candidate that explicitly asked to exit", func(t *testing.T) {
+		candidate := `{"serverAddr":"0.0.0.0","serverPort":7000,` +
+			`"loginFailExit":true,"proxies":[]}`
+		raw, err := InjectFRPClientConfig([]byte(candidate), baseInjection())
+		require.NoError(t, err)
+		require.Equal(t, false, parseInjected(t, raw)["loginFailExit"])
+	})
+	t.Run("survives the loader the agent uses", func(t *testing.T) {
+		raw, err := InjectFRPClientConfig([]byte(candidateUninjected), baseInjection())
+		require.NoError(t, err)
+		common, _, _, err := LoadClientConfig(raw, true)
+		require.NoError(t, err)
+		require.NotNil(t, common.LoginFailExit)
+		require.False(t, *common.LoginFailExit,
+			"Complete() must not flip an explicit false back to true")
+	})
 }

@@ -124,6 +124,29 @@ func InjectFRPClientConfig(candidate []byte, in FRPClientInjection) ([]byte, err
 	cliCfg.Metadatas[defs.FRPAuthTokenKey] = in.AuthToken
 	cliCfg.Metadatas[defs.FRPClientIDKey] = in.ClientID
 
+	// A master-managed agent must never exit because one login failed.
+	//
+	// frp's Complete() defaults loginFailExit to true, so every stored
+	// candidate carries "exit on the first failed login" unless someone said
+	// otherwise. For a standalone frpc that is a reasonable fail-fast; under
+	// frp-panel it is wrong. The master owns the connection identity, so a
+	// transient failure — master restarting, frps bindPort briefly taken, a
+	// network blip, or a bad config the master has since fixed — permanently
+	// kills a tunnel that would have worked seconds later
+	// (client/service.go:212 passes this flag as firstLoginExit into
+	// loopLoginUntilSuccess, which calls svr.cancel() instead of retrying).
+	//
+	// With false the same call site retries with exponential backoff (1s × 2,
+	// jitter 0.1, capped at 10s) and, once a control exists,
+	// keepControllerWorking() reconnects for the process lifetime. The agent
+	// heals itself instead of waiting for something to notice a dead handler.
+	//
+	// This is a policy of the managed platform, not a user preference: the
+	// field is not exposed in the tunnel UI, and pinning it here covers every
+	// agent-facing path at once. EmptyOr treats only a nil *bool as unset, so
+	// an explicit false survives Complete() on the agent side.
+	cliCfg.LoginFailExit = lo.ToPtr(false)
+
 	newCfg := struct {
 		v1.ClientCommonConfig
 		Proxies  []v1.ProxyConfigurer   `json:"proxies,omitempty"`
