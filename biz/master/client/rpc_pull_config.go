@@ -97,8 +97,17 @@ func RPCPullConfig(ctx *app.Context, req *pb.PullClientConfigReq) (*pb.PullClien
 	// Returning the error propagates it to the agent, which logs "cannot pull
 	// client config", keeps its current handlers untouched, and retries on the
 	// next tick — visible on both sides, destructive on neither.
+	//
+	// A SHADOW origin is exempt: the agent never runs a shadow's own config
+	// (biz/client.PullConfig returns as soon as it has recursed into
+	// ClientIds), yet production shadows can still carry a LEGACY
+	// config_content with an empty server_id — left by the old
+	// fire-and-forget writer. Injecting that would fail on "invalid server
+	// id", fail the whole RPC, and stop the agent from ever reaching the
+	// children that DO need a config. So a shadow serves no config of its own,
+	// by design.
 	config := ""
-	if len(cli.ConfigContent) > 0 {
+	if !cli.IsShadow && len(cli.ConfigContent) > 0 {
 		if config, err = pullableClientConfig(ctx, cli); err != nil {
 			logPullFailure(ctx, cli.ClientID, err)
 			return nil, err

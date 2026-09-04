@@ -334,6 +334,33 @@ func TestRPCPullConfigShadowOriginListsChildren(t *testing.T) {
 	require.Empty(t, resp.GetClient().GetConfig(), "a shadow row has no config of its own")
 }
 
+// A shadow origin exists in production in TWO shapes: with an empty
+// config_content (the clean case) and with a LEGACY non-empty one left by the
+// old fire-and-forget writer — root.c.k30pro carries 873 bytes and an empty
+// server_id. The agent never uses a shadow's config (biz/client
+// PullConfig returns right after recursing into ClientIds), so injecting it is
+// both pointless and fatal: an empty server_id makes the injector fail, the
+// whole RPC returns an error, and the agent stops recursing — its children
+// never pull again.
+func TestRPCPullConfigShadowOriginWithLegacyConfigStillListsChildren(t *testing.T) {
+	env := newMasterClientEnv(t)
+	seedCandidateChild(t, env)
+	// The legacy leftover: a shadow row with a config AND no server.
+	require.NoError(t, env.db.Model(&models.Client{}).
+		Where("client_id = ?", "cli-origin").
+		Updates(map[string]any{"config_content": candidateConfig(t), "server_id": ""}).Error)
+	require.NoError(t, env.db.Create(&models.ProxyConfig{ProxyConfigEntity: &models.ProxyConfigEntity{
+		Name: "mt3000-ssh", ClientID: "cli-child", OriginClientID: "cli-origin",
+		ServerID: "srv-1", UserID: 1, TenantID: 1,
+	}}).Error)
+
+	resp, err := RPCPullConfig(agentCtx(env), pullReq("cli-origin", "origin-secret"))
+	require.NoError(t, err, "a shadow origin must never fail the pull — its children depend on this response")
+	require.Contains(t, resp.GetClient().GetClientIds(), "cli-child")
+	require.Empty(t, resp.GetClient().GetConfig(),
+		"a shadow's own config is never used by the agent and must not be served")
+}
+
 // The kcp/quic transports pull their port from a DIFFERENT field of the server
 // row than tcp does. This pins the read path's wiring of those fields into the
 // injector — the injector's own unit test cannot catch a mis-wired caller.
