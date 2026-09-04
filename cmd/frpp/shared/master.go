@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VaalaCat/frp-panel/biz/master/auth"
+	masterclient "github.com/VaalaCat/frp-panel/biz/master/client"
 	"github.com/VaalaCat/frp-panel/biz/master/proxy"
 	"github.com/VaalaCat/frp-panel/biz/master/readonly"
 	"github.com/VaalaCat/frp-panel/conf"
@@ -102,6 +103,23 @@ func runMaster(param runMasterParam) {
 				// runs, so drop the context immediately.
 				cancel()
 			}
+
+			// One-shot data-hygiene pass: rows written before the shared
+			// injector landed keep the frp user and a PLAINTEXT frps token in
+			// clients.config_content (a column the WebUI reads). The writers no
+			// longer do that, but existing rows do not self-heal. Idempotent,
+			// non-fatal, and skipped in read-only mode — a hygiene migration
+			// must never block startup or write while the Master is blocked.
+			if !readonly.Blocked() {
+				if scanned, cleaned, err := masterclient.StripStoredCredentials(param.Ctx); err != nil {
+					logger.Logger(param.Ctx).WithError(err).Warnf("credential strip pass failed, continuing startup")
+				} else if cleaned > 0 {
+					logger.Logger(param.Ctx).Warnf("credential strip: cleaned %d of %d stored client configs", cleaned, scanned)
+				} else {
+					logger.Logger(param.Ctx).Infof("credential strip: %d stored client configs already clean", scanned)
+				}
+			}
+
 			if param.RPCGuard != nil {
 				auditLoop = startRPCAuditLoop(param.Ctx, param.RPCGuard)
 			}
