@@ -52,6 +52,11 @@ func DeleteClientHandler(ctx *app.Context, req *pb.DeleteClientRequest) (*pb.Del
 		return nil, err
 	}
 
+	// The pull-path failure memo is keyed by client id; drop it here so a
+	// deleted client cannot leave a permanent entry behind (see
+	// pullFailureLog in rpc_pull_config.go).
+	clearPullFailure(clientID)
+
 	if err := dao.NewMutation(ctx).DeleteProxyConfigsByClientIDOrOriginClientID(userInfo, clientID); err != nil {
 		return nil, err
 	}

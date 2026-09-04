@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 
 	"github.com/VaalaCat/frp-panel/common"
@@ -10,9 +9,9 @@ import (
 	"github.com/VaalaCat/frp-panel/services/app"
 	"github.com/VaalaCat/frp-panel/services/dao"
 	"github.com/VaalaCat/frp-panel/services/rpcguard"
+	"github.com/VaalaCat/frp-panel/utils"
 	"github.com/VaalaCat/frp-panel/utils/logger"
 	"github.com/samber/lo"
-	"github.com/spf13/cast"
 	"github.com/tiendc/go-deepcopy"
 	"gorm.io/gorm"
 )
@@ -168,33 +167,18 @@ func ChildClientForServer(c *app.Context, serverID string, clientEntity *models.
 	return copiedClient, true, nil
 }
 
+// ValidFrpsScheme is kept as a package-level alias for existing callers; the
+// single implementation lives in utils so the write path (biz/master/proxy)
+// and this read path cannot drift apart again.
 func ValidFrpsScheme(scheme string) bool {
-	return scheme == "tcp" ||
-		scheme == "kcp" || scheme == "quic" ||
-		scheme == "websocket" || scheme == "wss"
+	return utils.ValidFrpsScheme(scheme)
 }
 
+// ValidateFrpsUrl delegates to utils.ValidateFrpsURL — one validator, one
+// verdict for both the pull path and the transactional apply path. The write
+// path used to carry a weaker private copy that only required a non-empty
+// hostname, so the same stored frps_url was rejected here but pushed to the
+// agent there (with protocol:"bogus" / port:0).
 func ValidateFrpsUrl(urlStr string) (*url.URL, error) {
-	parsedFrpsUrl, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, fmt.Errorf("parse frps url error")
-	}
-
-	if !ValidFrpsScheme(parsedFrpsUrl.Scheme) {
-		return nil, fmt.Errorf("invalid frps scheme")
-	}
-
-	if len(parsedFrpsUrl.Host) == 0 {
-		return nil, fmt.Errorf("invalid frps host")
-	}
-
-	if len(parsedFrpsUrl.Hostname()) == 0 {
-		return nil, fmt.Errorf("invalid frps hostname")
-	}
-
-	if cast.ToInt(parsedFrpsUrl.Port()) == 0 {
-		return nil, fmt.Errorf("invalid frps port")
-	}
-
-	return parsedFrpsUrl, nil
+	return utils.ValidateFrpsURL(urlStr)
 }

@@ -191,13 +191,23 @@ func UpdateFrpcHanderLocked(c *app.Context, req *pb.UpdateFRPCRequest) (*pb.Upda
 		cli.FrpsUrl = urlToParse
 	}
 
-	cliCfg.User = userInfo.GetUserName()
-
+	// The identity (frp user + frps auth token) is deliberately NOT written
+	// into the bytes that get PERSISTED below.
+	//
+	// This legacy writer used to inject it and then store the injected bytes
+	// into clients.config_content, leaving the frps auth token in PLAINTEXT at
+	// rest in a column get_client/list_client hand to the WebUI. Both
+	// consumers of that column now inject the identity at use time through
+	// utils.InjectFRPClientConfig — the agent pull path
+	// (client.pullableClientConfig, every 30s) and the transactional apply
+	// path (proxy.buildFrpcApplyConfig) — so persisting a credential buys
+	// nothing and breaks the "no credential at rest in the client row"
+	// invariant. What is STORED is the candidate; what is PUSHED is the
+	// injected form, built from the same shared injector further down.
 	if cliCfg.Metadatas == nil {
 		cliCfg.Metadatas = make(map[string]string)
 	}
 
-	cliCfg.Metadatas[defs.FRPAuthTokenKey] = userInfo.GetToken()
 	// The wire target may differ from the route request: an origin-addressed
 	// first update creates a shadow child. The FRP metadata must identify the
 	// actual target handler, otherwise the Agent indexes it as the child while
@@ -220,6 +230,36 @@ func UpdateFrpcHanderLocked(c *app.Context, req *pb.UpdateFRPCRequest) (*pb.Upda
 		return nil, err
 	}
 
+	// The bytes the AGENT receives carry the identity; the bytes the DB keeps
+	// (rawCliConf) never do. Same injector as the pull path, so the two
+	// directions cannot drift apart.
+	injection := utils.FRPClientInjection{
+		ServerAddr:   srv.ServerIP,
+		BindPort:     srvConf.BindPort,
+		KCPBindPort:  srvConf.KCPBindPort,
+		QUICBindPort: srvConf.QUICBindPort,
+		User:         userInfo.GetUserName(),
+		AuthToken:    userInfo.GetToken(),
+		ClientID:     cli.ClientID,
+	}
+	if len(cli.FrpsUrl) > 0 {
+		parsed, err := ValidateFrpsUrl(cli.FrpsUrl)
+		if err != nil {
+			logger.Logger(c).WithError(err).Error("invalid frps url on client row")
+			return &pb.UpdateFRPCResponse{
+				Status: &pb.Status{Code: pb.RespCode_RESP_CODE_INVALID, Message: err.Error()},
+			}, err
+		}
+		injection.FrpsURLHost = parsed.Hostname()
+		injection.FrpsURLPort = cast.ToInt(parsed.Port())
+		injection.FrpsURLProtocol = parsed.Scheme
+	}
+	agentCliConf, err := utils.InjectFRPClientConfig(rawCliConf, injection)
+	if err != nil {
+		logger.Logger(c).WithError(err).Errorf("cannot build a dialable config for client, id: [%s]", cli.ClientID)
+		return nil, err
+	}
+
 	cli.ConfigContent = rawCliConf
 	cli.ServerID = serverID
 	if req.Comment != nil {
@@ -239,7 +279,7 @@ func UpdateFrpcHanderLocked(c *app.Context, req *pb.UpdateFRPCRequest) (*pb.Upda
 	cliReq := &pb.UpdateFRPCRequest{
 		ClientId: lo.ToPtr(cli.ClientID),
 		ServerId: lo.ToPtr(serverID),
-		Config:   rawCliConf,
+		Config:   agentCliConf,
 	}
 	if cli.OriginClientID != "" {
 		// Every child update idempotently replaces the origin handler. This is

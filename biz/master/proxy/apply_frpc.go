@@ -2,10 +2,8 @@ package proxy
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/VaalaCat/frp-panel/common"
@@ -16,7 +14,6 @@ import (
 	"github.com/VaalaCat/frp-panel/services/dao"
 	"github.com/VaalaCat/frp-panel/services/rpc"
 	"github.com/VaalaCat/frp-panel/utils"
-	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/samber/lo"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/proto"
@@ -122,15 +119,19 @@ func classifyApplyError(err error) string {
 // URL override, user, and auth metadata. It performs no DB writes — the
 // caller persists only after the synchronous ACK (spec §8.1 step 8/10).
 //
+// The actual rewriting lives in utils.InjectFRPClientConfig, which the READ
+// path (biz/master/client.pullableClientConfig, the agent's 30s pull loop)
+// uses as well. Sharing one injector is deliberate: the two paths drifted
+// once already — the write path pushed an injected config while the read path
+// served the raw candidate, so every pull overwrote a working agent config
+// with an undialable 0.0.0.0:7000 one (production incident 2026-09-04,
+// client root.c.openWrt). Resolve inputs here, rewrite there.
+//
 // cli is the resolved child (shadow) client entity: it provides FrpsUrl and
 // the child id stamped into the metadata; its ConfigContent is NOT read, the
 // candidate bytes are authoritative.
 func buildFrpcApplyConfig(c *app.Context, cli *models.ClientEntity, serverID string, candidate []byte) ([]byte, error) {
 	userInfo := common.GetUserInfo(c)
-	cliCfg, err := utils.LoadClientConfigNormal(candidate, true)
-	if err != nil {
-		return nil, fmt.Errorf("cannot load candidate client config: %w", err)
-	}
 
 	srv, err := dao.NewQuery(c).GetServerByServerID(userInfo, serverID)
 	if err != nil || srv == nil || len(srv.ServerIP) == 0 || len(srv.ConfigContent) == 0 {
@@ -141,54 +142,29 @@ func buildFrpcApplyConfig(c *app.Context, cli *models.ClientEntity, serverID str
 		return nil, fmt.Errorf("cannot get server config, id: [%s]", serverID)
 	}
 
-	cliCfg.ServerAddr = srv.ServerIP
-	switch cliCfg.Transport.Protocol {
-	case "kcp":
-		cliCfg.ServerPort = srvConf.KCPBindPort
-	case "quic":
-		cliCfg.ServerPort = srvConf.QUICBindPort
-	default:
-		cliCfg.ServerPort = srvConf.BindPort
+	injection := utils.FRPClientInjection{
+		ServerAddr:   srv.ServerIP,
+		BindPort:     srvConf.BindPort,
+		KCPBindPort:  srvConf.KCPBindPort,
+		QUICBindPort: srvConf.QUICBindPort,
+		User:         userInfo.GetUserName(),
+		AuthToken:    userInfo.GetToken(),
+		ClientID:     cli.ClientID,
 	}
 
 	if len(cli.FrpsUrl) > 0 {
-		parsed, err := validateFrpsURL(cli.FrpsUrl)
+		parsed, err := utils.ValidateFrpsURL(cli.FrpsUrl)
 		if err != nil {
 			return nil, fmt.Errorf("invalid frps url: %w", err)
 		}
-		cliCfg.ServerAddr = parsed.Hostname()
-		cliCfg.ServerPort = cast.ToInt(parsed.Port())
-		cliCfg.Transport.Protocol = parsed.Scheme
+		injection.FrpsURLHost = parsed.Hostname()
+		injection.FrpsURLPort = cast.ToInt(parsed.Port())
+		injection.FrpsURLProtocol = parsed.Scheme
 	}
 
-	cliCfg.User = userInfo.GetUserName()
-	if cliCfg.Metadatas == nil {
-		cliCfg.Metadatas = make(map[string]string)
-	}
-	cliCfg.Metadatas[defs.FRPAuthTokenKey] = userInfo.GetToken()
-	cliCfg.Metadatas[defs.FRPClientIDKey] = cli.ClientID
-
-	newCfg := struct {
-		v1.ClientCommonConfig
-		Proxies  []v1.ProxyConfigurer   `json:"proxies,omitempty"`
-		Visitors []v1.VisitorConfigurer `json:"visitors,omitempty"`
-	}{
-		ClientCommonConfig: cliCfg.ClientCommonConfig,
-		Proxies:            lo.Map(cliCfg.Proxies, func(item v1.TypedProxyConfig, _ int) v1.ProxyConfigurer { return item.ProxyConfigurer }),
-		Visitors:           lo.Map(cliCfg.Visitors, func(item v1.TypedVisitorConfig, _ int) v1.VisitorConfigurer { return item.VisitorConfigurer }),
-	}
-	return json.Marshal(newCfg)
-}
-
-// validateFrpsURL mirrors biz/master/client.ValidateFrpsUrl without pulling
-// the client package into the apply path (keeps the builder dependency-light).
-func validateFrpsURL(urlStr string) (*url.URL, error) {
-	parsed, err := url.Parse(urlStr)
+	raw, err := utils.InjectFRPClientConfig(candidate, injection)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot load candidate client config: %w", err)
 	}
-	if parsed.Hostname() == "" {
-		return nil, fmt.Errorf("frps url has no host")
-	}
-	return parsed, nil
+	return raw, nil
 }
