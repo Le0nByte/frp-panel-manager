@@ -59,11 +59,17 @@ func getLogHander(c *gin.Context, appInstance app.Application) {
 		rpc.CallClient(app.NewContext(context.Background(), appInstance), id, pb.Event_EVENT_STOP_STREAM_LOG, &pb.CommonRequest{})
 	}()
 
+	// SSE: nginx buffers proxied responses by default (proxy_buffering on),
+	// which silently swallows a low-rate event stream — the browser sees
+	// nothing until the buffer fills or the connection closes. This header
+	// tells nginx to stream this response through unbuffered, and it works
+	// without matching proxy_buffering off in the vhost config.
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	c.Writer.Header().Set("Content-Encoding", "none")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 
 	var wg conc.WaitGroup
