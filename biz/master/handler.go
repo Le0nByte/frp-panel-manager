@@ -60,6 +60,8 @@ func ConfigureRouter(appInstance app.Application, router *gin.Engine) {
 		platformRouter := v1.Group("/platform")
 		{
 			platformRouter.GET("/baseinfo", platform.GetPlatformInfo(appInstance))
+			// 当前 Master 二进制自身的版本（前端在侧边栏底部展示）
+			platformRouter.GET("/version", platform.GetVersion())
 			platformRouter.POST("/clientsstatus", app.Wrapper(appInstance, platform.GetClientsStatus))
 		}
 		firewallRouter := v1.Group("/firewall")

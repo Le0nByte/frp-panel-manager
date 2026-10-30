@@ -150,10 +150,24 @@ jobs:
           cache: true
 
       - name: Build linux/${{ matrix.goarch }}
-        run: >-
-          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.goarch }}
-          go build -trimpath -ldflags="-s -w"
-          -o frp-panel-linux-${{ matrix.goarch }} ./cmd/frpp
+        env:
+          COMMIT: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
+        run: |
+          # 版本号注入：tag 构建用 tag 名，非 tag（workflow_dispatch）用 dev-<短 sha>，
+          # 这样 WebUI 侧边栏显示的版本永远对应真实构建来源。
+          case "$REF" in
+            v*) VERSION="$REF" ;;
+            *)  VERSION="dev-$(echo "$COMMIT" | cut -c1-7)" ;;
+          esac
+          echo "注入版本: $VERSION"
+          LDFLAGS="-s -w"
+          LDFLAGS="$LDFLAGS -X github.com/VaalaCat/frp-panel/conf.gitVersion=$VERSION"
+          LDFLAGS="$LDFLAGS -X github.com/VaalaCat/frp-panel/conf.gitCommit=$COMMIT"
+          LDFLAGS="$LDFLAGS -X github.com/VaalaCat/frp-panel/conf.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags="$LDFLAGS" \
+            -o frp-panel-linux-${{ matrix.goarch }} ./cmd/frpp
 
       - name: Upload linux/${{ matrix.goarch }} binary
         uses: actions/upload-artifact@v7
@@ -253,10 +267,22 @@ jobs:
           cache: true
 
       - name: Build windows/amd64
-        run: >-
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64
-          go build -trimpath -ldflags="-s -w"
-          -o frp-panel-windows-amd64.exe ./cmd/frpp
+        env:
+          COMMIT: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
+        run: |
+          case "$REF" in
+            v*) VERSION="$REF" ;;
+            *)  VERSION="dev-$(echo "$COMMIT" | cut -c1-7)" ;;
+          esac
+          echo "注入版本: $VERSION"
+          LDFLAGS="-s -w"
+          LDFLAGS="$LDFLAGS -X github.com/VaalaCat/frp-panel/conf.gitVersion=$VERSION"
+          LDFLAGS="$LDFLAGS -X github.com/VaalaCat/frp-panel/conf.gitCommit=$COMMIT"
+          LDFLAGS="$LDFLAGS -X github.com/VaalaCat/frp-panel/conf.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
+            go build -trimpath -ldflags="$LDFLAGS" \
+            -o frp-panel-windows-amd64.exe ./cmd/frpp
 
       - name: Download linux binaries
         uses: actions/download-artifact@v8

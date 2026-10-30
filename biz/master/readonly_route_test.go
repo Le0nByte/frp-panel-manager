@@ -181,6 +181,7 @@ func TestReadOnlyReadRoutesStillServeWhileBlocked(t *testing.T) {
 		{http.MethodPost, "/api/v1/user/sign-token", `{}`},
 		{http.MethodPost, "/api/v1/platform/clientsstatus", `{}`},
 		{http.MethodGet, "/api/v1/platform/baseinfo", ""},
+		{http.MethodGet, "/api/v1/platform/version", ""},
 		{http.MethodPost, "/api/v1/client/get", `{}`},
 		{http.MethodPost, "/api/v1/client/list", `{}`},
 		{http.MethodPost, "/api/v1/server/get", `{}`},

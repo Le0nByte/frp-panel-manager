@@ -15,7 +15,7 @@ import { TbBuildingTunnel } from "react-icons/tb"
 import { RegisterAndLogin } from "./header"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { getPlatformInfo } from "@/api/platform"
+import { getPlatformInfo, getMasterVersion } from "@/api/platform"
 import { getNavItems } from '@/config/nav'
 import { useTranslation } from 'react-i18next'
 
@@ -31,6 +31,16 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
   const { data: platformInfo } = useQuery({
     queryKey: ['platformInfo'],
     queryFn: getPlatformInfo,
+  })
+
+  // Master 自身版本：低频变化，缓存 5 分钟避免每次路由切换都请求。
+  // 该接口在 JWT 保护组内，未登录时（登录页也复用同一个侧边栏）不发起请求，
+  // 否则只会拿到 401 并在控制台刷错误。
+  const { data: versionInfo } = useQuery({
+    queryKey: ['masterVersion'],
+    queryFn: getMasterVersion,
+    staleTime: 5 * 60 * 1000,
+    enabled: !!userInfo,
   })
 
   React.useEffect(() => {
@@ -54,6 +64,20 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
             </span>
             <span className="truncate text-xs font-mono">{t('app.subtitle')}</span>
           </div>
+          {versionInfo?.gitVersion && (
+            <span
+              className="ml-auto shrink-0 self-center font-mono text-[11px] font-semibold text-muted-foreground group-data-[collapsible=icon]:hidden"
+              title={[
+                versionInfo.gitVersion,
+                versionInfo.gitCommit ? versionInfo.gitCommit.slice(0, 7) : '',
+                versionInfo.buildDate,
+                versionInfo.goVersion,
+                versionInfo.platform,
+              ].filter(Boolean).join(' · ')}
+            >
+              {versionInfo.gitVersion}
+            </span>
+          )}
         </SidebarMenuButton>
         <NavMain items={getNavItems(t)} />
       </SidebarHeader>
