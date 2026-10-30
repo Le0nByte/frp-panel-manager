@@ -161,7 +161,11 @@ jobs:
           name: frp-panel-linux-${{ matrix.goarch }}
           path: frp-panel-linux-${{ matrix.goarch }}
           if-no-files-found: error
-          retention-days: 7
+          # GitHub Free 只有 500 MB 制品额度，三个二进制约 114 MB/次。
+          # deploy-master 与 release 都在本次 run 内消费，1 天足够；
+          # 用默认 7 天会在连打几次 tag 后再次撑爆配额。
+          # 代价：超过 24h 后再 re-run 这个 run 需要重新构建。
+          retention-days: 1
 
   deploy-master:
     name: Deploy Master (Aliyun ECS)
