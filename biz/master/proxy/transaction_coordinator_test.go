@@ -37,6 +37,16 @@ const (
 
 var candidateWebTOML = []byte("[[proxies]]\nname = \"web\"\ntype = \"tcp\"\nlocalIP = \"127.0.0.1\"\nlocalPort = 8080\nremotePort = 8000\n")
 
+// candidateTOML renders a one-proxy client-config fragment. The name is
+// parameterised because "create with a name that already exists" is its own
+// failure class (PROXY_NAME_CONFLICT) and must be distinguishable from a
+// physical-port collision (RESERVATION_CONFLICT).
+func candidateTOML(name string, remote, local uint32) []byte {
+	return []byte(fmt.Sprintf(
+		"[[proxies]]\nname = %q\ntype = \"tcp\"\nlocalIP = \"127.0.0.1\"\nlocalPort = %d\nremotePort = %d\n",
+		name, local, remote))
+}
+
 // ---- test doubles (only Preflight / Apply / Verifier / KeyProvider are
 // faked; the DAO stores are the REAL implementations over in-memory SQLite) ----
 
@@ -755,8 +765,9 @@ func TestSafeCreateReservationConflict(t *testing.T) {
 	require.Equal(t, pb.RespCode_RESP_CODE_SUCCESS, resp.GetStatus().GetCode())
 	require.Empty(t, resp.GetErrorCode(), "success responses must carry no error_code")
 
-	// second request on the same port with a different key
-	resp2, err := tc.SafeCreateProxy(env.ctx, createReq(uuidKey(), candidateWebTOML))
+	// second request on the same port with a DIFFERENT name: the name is free,
+	// so the physical port collision is what must reject it
+	resp2, err := tc.SafeCreateProxy(env.ctx, createReq(uuidKey(), candidateTOML("web2", 8000, 8080)))
 	require.NoError(t, err)
 	assertInvalidCode(t, resp2, defs.ErrorCodeReservationConflict)
 
@@ -1330,9 +1341,11 @@ func TestSafeCreateFailuresLeaveZeroConfigDelta(t *testing.T) {
 		require.Equal(t, pb.RespCode_RESP_CODE_SUCCESS, resp.GetStatus().GetCode())
 		require.Empty(t, resp.GetErrorCode(), "success responses must carry no error_code")
 
-		// second request on the same port must fail WITHOUT touching rows
+		// second request on the same port must fail WITHOUT touching rows. A
+		// different name keeps this about the physical port collision: the same
+		// name would be rejected earlier as a create-over-existing conflict.
 		beforeC, beforeP := env.captureConfigRows()
-		resp2, err := tc.SafeCreateProxy(env.ctx, createReq(uuidKey(), candidateWebTOML))
+		resp2, err := tc.SafeCreateProxy(env.ctx, createReq(uuidKey(), candidateTOML("web2", 8000, 8080)))
 		require.NoError(t, err)
 		assertInvalidCode(t, resp2, defs.ErrorCodeReservationConflict)
 		assertNoConfigDelta(t, env, beforeC, beforeP)

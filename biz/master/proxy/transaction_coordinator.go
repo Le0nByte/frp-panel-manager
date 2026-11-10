@@ -20,6 +20,7 @@ import (
 	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/google/uuid"
 	"github.com/samber/lo"
+	"gorm.io/gorm"
 )
 
 // ---------------------------------------------------------------------------
@@ -317,6 +318,55 @@ func (tc *TransactionCoordinator) SafeCreateProxy(c *app.Context, req *pb.Create
 		return nil, err
 	}
 
+	// ---- b2. name gate: a create NEVER silently overwrites a rule that
+	// already exists. The commit rebuild preserves the row id of an existing
+	// same-name row on the same child, so a "create" whose name is taken used
+	// to become an in-place overwrite of that tunnel: its public port silently
+	// moved to the new value and the OLD port kept a committed reservation
+	// that no list endpoint can show and no code path ever releases it (every
+	// later create on that port fails RESERVATION_CONFLICT forever).
+	//
+	// The gate runs UNDER the (tenant, origin) lock — no create/update on the
+	// same origin can interleave — and BEFORE the transaction row, the lease
+	// and the agent apply, so a rejected create has ZERO side effects (no
+	// transaction, no reservation, no config change). overwrite=true is the
+	// caller's explicit "replace the existing rule" intent and keeps working;
+	// the commit then reconciles the inherited lease (see
+	// CommitCreateInput.NewKey/AdoptLease).
+	existingRow, gateErr := dao.NewQuery(c).GetProxyConfigByOriginOrClientAndName(
+		userInfo, originID, canonical.GetServerId(), target.ProxyName)
+	if gateErr != nil && !errors.Is(gateErr, gorm.ErrRecordNotFound) && !errors.Is(gateErr, defs.ErrAmbiguousProxyTarget) {
+		return nil, gateErr
+	}
+	nameTaken := gateErr == nil || errors.Is(gateErr, defs.ErrAmbiguousProxyTarget)
+	if nameTaken && !canonical.GetOverwrite() {
+		return invalidCreateResp(defs.ErrorCodeProxyNameConflict,
+			fmt.Sprintf("proxy %q already exists on server %s: create never overwrites an existing rule — use update_config, or set overwrite=true to replace it explicitly",
+				target.ProxyName, canonical.GetServerId())), nil
+	}
+
+	// the physical key the created rule will occupy
+	newKey := dao.ReservationKey{
+		ServerID:   canonical.GetServerId(),
+		Protocol:   target.Protocol,
+		RemotePort: target.RemotePort,
+	}
+	// Same-key overwrite: the rule being replaced already owns a committed
+	// lease on exactly this port, and committed leases are never evictable —
+	// TryAcquire would reject the request as a conflict with ITS OWN lease.
+	// Adopt the lease instead: no pending lease is taken and the commit binds
+	// the existing one to the final row id.
+	adoptLease := false
+	if nameTaken && canonical.GetOverwrite() && existingRow != nil {
+		if existingKey, kerr := rowPhysicalKey(existingRow); kerr == nil && existingKey == newKey {
+			if owned, oerr := committedLeaseOwnedBy(c, userInfo, newKey, existingRow.ID); oerr != nil {
+				return nil, oerr
+			} else if owned {
+				adoptLease = true
+			}
+		}
+	}
+
 	// ---- c. create the transaction (pending) FIRST: every later DB write
 	// (shadow scaffolding included) happens under a live transaction row, so
 	// no failure can silently leave unrecoverable side effects. ----
@@ -346,16 +396,21 @@ func (tc *TransactionCoordinator) SafeCreateProxy(c *app.Context, req *pb.Create
 	}
 
 	// ---- d. reserve the public port (120s lease), fail fast: a conflicting
-	// request performs no client writes at all ----
-	if _, err := d.ResStore.TryAcquire(c, userInfo, canonical.GetServerId(), target.Protocol, target.RemotePort, txID, d.Lease, now); err != nil {
-		if errors.Is(err, defs.ErrReservationConflict) {
-			_ = tc.failTx(c, userInfo, txID, defs.ErrorCodeReservationConflict,
-				fmt.Sprintf("port %d/%s on %s is already reserved by another change", target.RemotePort, target.Protocol, canonical.GetServerId()), "")
-			return invalidCreateResp(defs.ErrorCodeReservationConflict,
-				fmt.Sprintf("port %d/%s on %s is already reserved by another change", target.RemotePort, target.Protocol, canonical.GetServerId())), nil
+	// request performs no client writes at all. In same-key overwrite mode the
+	// transaction adopts the lease the replaced rule already holds, so no
+	// acquire happens (a committed lease is never evictable and would conflict
+	// with itself). ----
+	if !adoptLease {
+		if _, err := d.ResStore.TryAcquire(c, userInfo, canonical.GetServerId(), target.Protocol, target.RemotePort, txID, d.Lease, now); err != nil {
+			if errors.Is(err, defs.ErrReservationConflict) {
+				_ = tc.failTx(c, userInfo, txID, defs.ErrorCodeReservationConflict,
+					fmt.Sprintf("port %d/%s on %s is already reserved by another change", target.RemotePort, target.Protocol, canonical.GetServerId()), "")
+				return invalidCreateResp(defs.ErrorCodeReservationConflict,
+					fmt.Sprintf("port %d/%s on %s is already reserved by another change", target.RemotePort, target.Protocol, canonical.GetServerId())), nil
+			}
+			_ = tc.failTx(c, userInfo, txID, "", fmt.Sprintf("cannot reserve port: %v", err), "")
+			return nil, err
 		}
-		_ = tc.failTx(c, userInfo, txID, "", fmt.Sprintf("cannot reserve port: %v", err), "")
-		return nil, err
 	}
 
 	// ---- e. resolve target child + origin + server, tenant-scoped.
@@ -583,6 +638,12 @@ func (tc *TransactionCoordinator) SafeCreateProxy(c *app.Context, req *pb.Create
 			NodeID:        canonical.GetClientId(),
 			Success:       true,
 		},
+		// lease reconciliation: the commit releases the previous port's
+		// committed lease when an explicit overwrite reuses the row id, and
+		// adopts the existing lease when the overwrite keeps the same port.
+		NewKey:     newKey,
+		Overwrite:  canonical.GetOverwrite(),
+		AdoptLease: adoptLease,
 	}
 	if _, err := d.TxStore.CommitCreate(c, userInfo, commitIn); err != nil {
 		// the config IS applied and verified, but the DB commit failed:

@@ -94,6 +94,21 @@ type CommitCreateInput struct {
 	Shadow     *ShadowCommit        // in-memory shadow conversion to persist atomically (nil = no origin change)
 	Snapshot   SnapshotInput
 	AuditEvent *models.AuditEvent // commit audit event (TenantID/ActorUserID forced by DAO)
+	// NewKey is the physical key (server/protocol/remotePort) the created rule
+	// runs on. The commit needs it to reconcile a committed lease inherited
+	// from an overwritten rule: exactly one committed lease may survive per
+	// proxy row, the one for the port that row actually serves.
+	NewKey ReservationKey
+	// Overwrite mirrors the request's explicit overwrite intent. A create may
+	// only reuse an existing ACTIVE row (same name → same row id, the silent
+	// upsert) when this is true; otherwise the commit fails closed with
+	// defs.ErrProxyConfigNameConflict.
+	Overwrite bool
+	// AdoptLease is the same-key overwrite contract: the rule being replaced
+	// already holds a committed lease at exactly NewKey, so this transaction
+	// acquired NO pending lease of its own and the commit adopts the existing
+	// committed one instead of flipping a pending row.
+	AdoptLease bool
 }
 
 // ShadowCommit describes the shadow conversion a safe create persists
@@ -133,6 +148,12 @@ type ReservationKey struct {
 	ServerID   string
 	Protocol   string
 	RemotePort uint32
+}
+
+// IsZero reports whether the key carries no physical identity at all (legacy
+// callers that predate the key-aware commit paths).
+func (k ReservationKey) IsZero() bool {
+	return k.ServerID == "" && k.Protocol == "" && k.RemotePort == 0
 }
 
 // SnapshotInput describes one encrypted config snapshot row.
@@ -394,6 +415,12 @@ func (m *transactionMutation) CommitCreate(userInfo models.UserInfo, in *CommitC
 
 	var proxyID uint
 	err := db.Transaction(func(tx *gorm.DB) error {
+		// rows this commit is about to hard-delete. Their committed leases are
+		// reconciled against the rebuilt rows after the rebuild: a lease whose
+		// rule survived keeps the port (owner transferred to the new row id),
+		// a lease whose rule did not survive is released. Without this the port
+		// stays reserved forever by a row that no longer exists.
+		var replacedRows []models.ProxyConfig
 		// 0. first shadow: convert the origin row and migrate its proxy
 		// rows (tenant/user scoped; a missing origin row fails the commit)
 		if in.Shadow != nil && in.Shadow.FirstShadow {
@@ -407,6 +434,13 @@ func (m *transactionMutation) CommitCreate(userInfo models.UserInfo, in *CommitC
 			if err := convertOriginToShadowInTx(tx, tenantID, userID, in.Shadow.OriginAfter.ClientID); err != nil {
 				return fmt.Errorf("commit create: %w", err)
 			}
+			// capture the ACTIVE origin rows BEFORE they are deleted: the
+			// rebuild re-creates them on the child under new ids
+			originRows, err := captureActiveProxyRowsInTx(tx, tenantID, userID, in.Shadow.OriginAfter.ClientID)
+			if err != nil {
+				return fmt.Errorf("commit create: capture origin proxy rows: %w", err)
+			}
+			replacedRows = append(replacedRows, originRows...)
 			// Active rows are rebuilt from the child's applied config. Stopped
 			// rows are absent from that config, but they remain user-visible and
 			// keep committed reservations. Move the SAME-SERVER stopped rows to
@@ -433,11 +467,49 @@ func (m *transactionMutation) CommitCreate(userInfo models.UserInfo, in *CommitC
 		}
 
 		// 2. rebuild proxy config rows from the applied config
+		//
+		// The rebuild deletes the child's ACTIVE rows first, so they must be
+		// captured before it runs: their committed leases are reconciled
+		// against the rebuilt rows right after the rebuild resolved the final
+		// row id.
+		childRows, err := captureActiveProxyRowsInTx(tx, tenantID, userID, in.Client.ClientID)
+		if err != nil {
+			return fmt.Errorf("commit create: capture child proxy rows: %w", err)
+		}
+		replacedRows = append(replacedRows, childRows...)
 		id, err := rebuildProxyConfigsInTx(tx, tenantID, userID, in.Client, in.ProxyName)
 		if err != nil {
 			return fmt.Errorf("commit create: rebuild proxy configs: %w", err)
 		}
 		proxyID = id
+
+		// 2c. a create never silently rebinds an existing ACTIVE rule: the
+		// rebuild preserves the row id of an existing same-name row on the
+		// same client, which turns the "create" into an in-place overwrite of
+		// that tunnel — its public port moves with it and the old port keeps a
+		// committed lease nobody can see. Only an explicit overwrite may do
+		// that; anything else fails closed (the coordinator rejects it before
+		// the apply, this is the TOCTOU re-check).
+		if !in.Overwrite && reusedActiveRow(childRows, id) {
+			return fmt.Errorf("%w: create would overwrite the active rule %q (row %d)",
+				defs.ErrProxyConfigNameConflict, in.ProxyName, id)
+		}
+
+		// 2d. reconcile the leases of every row the rebuild replaced: a rule
+		// that survived on the same port keeps its lease (owner transferred to
+		// the new row id), a rule that did not survive releases it.
+		if _, err := reconcileRebuiltReservationsInTx(tx, tenantID, replacedRows, in.Client.ClientID, id); err != nil {
+			return fmt.Errorf("commit create: reconcile reservations: %w", err)
+		}
+
+		// 2e. one row, one lease: release any committed lease still owned by
+		// the final row but keyed on a different port (the same-name overwrite
+		// leak: remotePort changed, the old lease was never reclaimed).
+		if !in.NewKey.IsZero() {
+			if _, err := releaseStaleOwnerReservationsInTx(tx, tenantID, id, in.NewKey); err != nil {
+				return fmt.Errorf("commit create: release stale reservations: %w", err)
+			}
+		}
 
 		// 2b. backfill change_transaction.proxy_id (spec §6.2: nullable
 		// only until the rule row exists). Runs BEFORE the reservation
@@ -448,20 +520,29 @@ func (m *transactionMutation) CommitCreate(userInfo models.UserInfo, in *CommitC
 		}
 
 		// 3. commit the reservation (CAS: only the still-pending lease owned
-		// by this transaction may be committed)
-		res := tx.Model(&models.PortReservation{}).
-			Where("transaction_id = ? AND tenant_id = ? AND status = ?",
-				in.TxID, tenantID, models.ReservationStatusPending).
-			Updates(map[string]interface{}{
-				"status":         models.ReservationStatusCommitted,
-				"owner_proxy_id": id,
-				"expires_at":     nil,
-			})
-		if res.Error != nil {
-			return fmt.Errorf("commit create: commit reservation: %w", res.Error)
-		}
-		if res.RowsAffected == 0 {
-			return fmt.Errorf("%w: reservation for tx %s", defs.ErrReservationNotFound, in.TxID)
+		// by this transaction may be committed). In same-key overwrite mode the
+		// transaction never acquired a lease: the committed lease the replaced
+		// rule already holds is adopted instead (and must belong to the final
+		// row id by now).
+		if in.AdoptLease {
+			if err := adoptCommittedLeaseInTx(tx, tenantID, in.NewKey, id); err != nil {
+				return fmt.Errorf("commit create: adopt reservation: %w", err)
+			}
+		} else {
+			res := tx.Model(&models.PortReservation{}).
+				Where("transaction_id = ? AND tenant_id = ? AND status = ?",
+					in.TxID, tenantID, models.ReservationStatusPending).
+				Updates(map[string]interface{}{
+					"status":         models.ReservationStatusCommitted,
+					"owner_proxy_id": id,
+					"expires_at":     nil,
+				})
+			if res.Error != nil {
+				return fmt.Errorf("commit create: commit reservation: %w", res.Error)
+			}
+			if res.RowsAffected == 0 {
+				return fmt.Errorf("%w: reservation for tx %s", defs.ErrReservationNotFound, in.TxID)
+			}
 		}
 
 		// 4. encrypted after snapshot

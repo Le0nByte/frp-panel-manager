@@ -29,6 +29,13 @@ const (
 	ErrorCodeCommitFailed        = "CONFIG_COMMIT_FAILED"
 	ErrorCodeIdempotencyConflict = "IDEMPOTENCY_CONFLICT"
 	ErrorCodeIdempotencyInFlight = "IDEMPOTENCY_IN_FLIGHT"
+	// ErrorCodeProxyNameConflict is the stable code for a CREATE whose name is
+	// already taken in the same (tenant, origin, server) scope. A create is an
+	// INSERT by contract: silently rebinding an existing tunnel's row — and
+	// therefore silently moving its public port — is never acceptable. The
+	// caller must use update_config (or pass overwrite=true to say explicitly
+	// that the existing rule is being replaced).
+	ErrorCodeProxyNameConflict = "PROXY_NAME_CONFLICT"
 	// ErrorCodeReadOnly is the stable code returned by every write entry
 	// (HTTP gate, managed proxy entries and legacy writers) while the
 	// master is blocked in read-only mode because the snapshot key
@@ -90,7 +97,8 @@ var (
 	ErrProxyConfigChanged = errors.New("proxy config changed concurrently")
 	// ErrProxyConfigNameConflict is returned when the rename target name is
 	// already taken by another row in the same origin scope at commit time
-	// (the TOCTOU re-check).
+	// (the TOCTOU re-check), and by the create path when the name already
+	// exists and the caller did not ask for an explicit overwrite.
 	ErrProxyConfigNameConflict = errors.New("proxy config name conflict")
 	// ErrInvalidCommitInput is returned when a commit payload violates the
 	// static shape contract (branch/mode/key geometry, missing payloads,

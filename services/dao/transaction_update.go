@@ -149,6 +149,11 @@ func (m *transactionMutation) CommitUpdate(userInfo models.UserInfo, in *CommitU
 
 	var finalProxyID uint
 	err := db.Transaction(func(tx *gorm.DB) error {
+		// rows this commit is about to hard-delete (first-shadow origin rows
+		// and/or the child's active rows). Their committed leases are
+		// reconciled after the rebuild — see
+		// reconcileRebuiltReservationsInTx.
+		var replacedRows []models.ProxyConfig
 		// S1 guard the old rule row (tenant+user scoped, re-verified; branch
 		// aware — returns the loaded row for the stopped in-place update)
 		old, err := loadOldProxyRowInTx(tx, tenantID, userID, in)
@@ -179,6 +184,11 @@ func (m *transactionMutation) CommitUpdate(userInfo models.UserInfo, in *CommitU
 					in.OriginClientID, in.Client.ClientID, in.Client.ServerID); err != nil {
 					return fmt.Errorf("commit update: migrate stopped origin proxy rows: %w", err)
 				}
+				originRows, err := captureActiveProxyRowsInTx(tx, tenantID, userID, in.OriginClientID)
+				if err != nil {
+					return fmt.Errorf("commit update: capture origin proxy rows: %w", err)
+				}
+				replacedRows = append(replacedRows, originRows...)
 				if err := deleteActiveProxyRowsInTx(tx, tenantID, userID, in.OriginClientID); err != nil {
 					return fmt.Errorf("commit update: delete active origin proxy rows: %w", err)
 				}
@@ -186,7 +196,14 @@ func (m *transactionMutation) CommitUpdate(userInfo models.UserInfo, in *CommitU
 			if err := persistChildClientInTx(tx, tenantID, userID, in.Client, in.Shadow.ChildCreated); err != nil {
 				return fmt.Errorf("commit update: %w", err)
 			}
-			// S4 rebuild proxy_config rows from the applied config
+			// S4 rebuild proxy_config rows from the applied config. The rebuild
+			// deletes the child's ACTIVE rows first, so capture them for the
+			// post-rebuild lease reconciliation.
+			childRows, err := captureActiveProxyRowsInTx(tx, tenantID, userID, in.Client.ClientID)
+			if err != nil {
+				return fmt.Errorf("commit update: capture child proxy rows: %w", err)
+			}
+			replacedRows = append(replacedRows, childRows...)
 			id, err := rebuildProxyConfigsInTx(tx, tenantID, userID, in.Client, in.ProxyName)
 			if err != nil {
 				return fmt.Errorf("commit update: rebuild proxy configs: %w", err)
@@ -216,6 +233,26 @@ func (m *transactionMutation) CommitUpdate(userInfo models.UserInfo, in *CommitU
 		// S6 reservation migration (write-first CAS per mode)
 		if err := migrateReservationInTx(tx, tenantID, in, finalProxyID); err != nil {
 			return fmt.Errorf("commit update: %w", err)
+		}
+		// S6b post-rebuild lease reconciliation: every OTHER row the rebuild
+		// replaced (first-shadow origin rows, renamed rules) must hand its
+		// committed lease to the row that still carries the same rule on the
+		// same port — or release it when the rule is gone. The target rule is
+		// excluded: S6 just migrated its lease by physical key + owner. Only
+		// the ACTIVE branch rebuilds rows; the stopped branch updates the old
+		// row in place (and carries no client).
+		if in.Branch == UpdateBranchActive {
+			if _, err := reconcileRebuiltReservationsInTx(tx, tenantID, replacedRows, in.Client.ClientID, in.OldProxyID); err != nil {
+				return fmt.Errorf("commit update: reconcile reservations: %w", err)
+			}
+			// S6c one row, one lease: a committed lease still owned by the
+			// final row but keyed on another port must not survive the commit
+			// (the remotePort-change leak).
+			if !in.Reservation.NewKey.IsZero() {
+				if _, err := releaseStaleOwnerReservationsInTx(tx, tenantID, finalProxyID, in.Reservation.NewKey); err != nil {
+					return fmt.Errorf("commit update: release stale reservations: %w", err)
+				}
+			}
 		}
 		// S7 save the two encrypted AFTER snapshots only — before rows are
 		// the coordinator's pre-apply job and are never written here. The
