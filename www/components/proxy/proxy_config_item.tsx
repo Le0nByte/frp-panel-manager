@@ -9,6 +9,7 @@ import { ProxyConfigActions } from './proxy_config_actions'
 import { ProxyConfig } from '@/lib/pb/common'
 import { getProxyConfig } from '@/api/proxy'
 import { Badge } from '../ui/badge'
+import { ProxyStatusBadge } from './proxy_status_badge'
 import { useStore } from '@nanostores/react'
 import { $proxyTableRefetchTrigger } from '@/store/refetch-trigger'
 
@@ -126,33 +127,12 @@ function ProxyStatus({ row }: { row: Row<ProxyConfigTableSchema> }) {
     refetchInterval: 10000,
   })
 
-  function getStatusColor(status: string): string {
-    switch (status) {
-      case 'new':
-        return 'text-blue-500'
-      case 'wait start':
-        return 'text-yellow-400'
-      case 'start error':
-        return 'text-red-500'
-      case 'running':
-        return 'text-green-500'
-      case 'check failed':
-        return 'text-orange-500'
-      case 'error':
-        return 'text-red-600'
-      default:
-        return 'text-gray-500'
-    }
-  }
-
   return (
-    <div className="flex items-center gap-2 flex-row text-nowrap">
-      <Badge
-        variant={'secondary'}
-        className={`p-2 border rounded font-mono w-fit ${getStatusColor(data?.workingStatus?.status || 'unknown')} text-nowrap rounded-full h-6`}
-      >
-        {data?.workingStatus?.status || 'loading'}
-      </Badge>
-    </div>
+    <ProxyStatusBadge
+      status={data?.workingStatus?.status || 'unknown'}
+      err={data?.workingStatus?.err}
+      clientID={row.original.originalProxyConfig.originClientId || row.original.clientID}
+      serverID={row.original.serverID}
+    />
   )
 }

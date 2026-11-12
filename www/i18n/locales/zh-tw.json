@@ -619,7 +619,11 @@
       "name_exists": "名稱重覆",
       "update": "更新隧道狀態",
       "success": "更新成功",
-      "error": "更新失敗"
+      "error": "更新失敗",
+      "agent_offline_hint": "該客戶端未連接到主控端：frpc 進程沒有運行。請到執行該客戶端的機器上啟動它。",
+      "agent_offline_title": "客戶端離線，啟動指引",
+      "agent_offline_desc": "以下命令在執行該客戶端的機器上執行。啟動後本頁會在 10 秒內自動刷新狀態。",
+      "close": "關閉"
     },
     "form": {
       "add": "新增隧道",
@@ -1013,7 +1017,8 @@
     "running": "運行中",
     "check_failed": "檢查失敗",
     "error": "錯誤",
-    "unknown": "未知"
+    "unknown": "未知",
+    "agent_offline": "客戶端離線"
   },
   "nav": {
     "clients": "客戶端",

@@ -623,7 +623,11 @@
       "name_exists": "Name already exists",
       "update": "Update Tunnel Status",
       "success": "Update successful",
-      "error": "Update failed"
+      "error": "Update failed",
+      "agent_offline_hint": "This client is not connected to the master: the frpc process is not running. Start it on the host that runs this client.",
+      "agent_offline_title": "Client offline - how to start it",
+      "agent_offline_desc": "Run this on the host that runs the client. This page refreshes the status within 10 seconds once it is up.",
+      "close": "Close"
     },
     "form": {
       "add": "Add Tunnel",
@@ -1032,7 +1036,8 @@
     "running": "Running",
     "check_failed": "Check Failed",
     "error": "Error",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "agent_offline": "Client offline"
   },
   "nav": {
     "clients": "Clients",

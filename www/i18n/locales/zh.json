@@ -619,7 +619,11 @@
       "name_exists": "名称重复",
       "update": "更新隧道状态",
       "success": "更新成功",
-      "error": "更新失败"
+      "error": "更新失败",
+      "agent_offline_hint": "该客户端未连接到主控端：frpc 进程没有运行。请到运行该客户端的机器上启动它。",
+      "agent_offline_title": "客户端离线，启动指引",
+      "agent_offline_desc": "以下命令在运行该客户端的机器上执行。启动后本页会在 10 秒内自动刷新状态。",
+      "close": "关闭"
     },
     "form": {
       "add": "新增隧道",
@@ -1027,7 +1031,8 @@
     "running": "运行中",
     "check_failed": "检查失败",
     "error": "错误",
-    "unknown": "未知"
+    "unknown": "未知",
+    "agent_offline": "客户端离线"
   },
   "nav": {
     "clients": "客户端",
