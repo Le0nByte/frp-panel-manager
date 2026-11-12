@@ -832,7 +832,11 @@
     "status_offline": "Offline",
     "status_error": "Error",
     "status_unknown": "Unknown",
-    "status_pause": "Paused"
+    "status_pause": "Paused",
+    "offline_title": "Server offline - how to start it",
+    "offline_hint": "The master holds no session for this frps: the frps process is not running or is not connected. Start it on the host that runs this server.",
+    "offline_desc": "Run this on the host that runs the server. This page refreshes the status within 10 seconds.",
+    "offline_close": "Close"
   },
   "auth": {
     "loggingIn": "Logging in, please wait",

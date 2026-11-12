@@ -823,7 +823,11 @@
     "status_offline": "Hors Ligne",
     "status_error": "Erreur",
     "status_unknown": "Inconnu",
-    "status_pause": "En Pause"
+    "status_pause": "En Pause",
+    "offline_title": "Serveur hors ligne - comment le démarrer",
+    "offline_hint": "Le maître n'a aucune session pour ce frps : le processus frps ne tourne pas ou n'est pas connecté. Démarrez-le sur la machine qui héberge ce serveur.",
+    "offline_desc": "Exécutez ceci sur la machine qui héberge le serveur. Cette page actualise l'état dans les 10 secondes.",
+    "offline_close": "Fermer"
   },
   "auth": {
     "loggingIn": "Connexion en cours, veuillez patienter",

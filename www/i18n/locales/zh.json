@@ -827,7 +827,11 @@
     "status_offline": "离线",
     "status_error": "错误",
     "status_unknown": "未知",
-    "status_pause": "已暂停"
+    "status_pause": "已暂停",
+    "offline_title": "服务端离线，启动指引",
+    "offline_hint": "主控端没有该 frps 的会话：frps 进程没有运行或没有连上主控端。请到运行该服务端的机器上启动它。",
+    "offline_desc": "以下命令在运行该服务端的机器上执行。启动后本页会在 10 秒内自动刷新状态。",
+    "offline_close": "关闭"
   },
   "auth": {
     "loggingIn": "登录中，请稍候",

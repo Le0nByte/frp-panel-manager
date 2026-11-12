@@ -33,6 +33,7 @@ import { ClientType } from '@/lib/pb/common'
 import { ClientStatus, ClientStatus_Status } from '@/lib/pb/api_master'
 import { Badge } from '../ui/badge'
 import { ClientDetail } from '../base/client_detail'
+import { ServerStatusBadge } from './server_status_badge'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -160,7 +161,6 @@ export const ServerID = ({ server }: { server: ServerTableSchema }) => {
 }
 
 export const ServerInfo = ({ server }: { server: ServerTableSchema }) => {
-  const { t } = useTranslation()
   const { data: clientsStatus } = useQuery({
     queryKey: ['clientsStatus', server.id],
     queryFn: async () => {
@@ -169,41 +169,20 @@ export const ServerInfo = ({ server }: { server: ServerTableSchema }) => {
         clientType: ClientType.FRPS,
       })
     },
+    // Poll so a dead frps shows up without a manual reload.
+    refetchInterval: 10000,
   })
 
-  const trans = (info: ClientStatus | undefined) => {
-    let statusText: 'server.status_online' | 'server.status_offline' |
-      'server.status_error' | 'server.status_pause' |
-      'server.status_unknown' = 'server.status_unknown'
-    if (info === undefined) {
-      return statusText
-    }
-    if (info.status === ClientStatus_Status.ONLINE) {
-      statusText = 'server.status_online'
-      if (server.stopped) {
-        statusText = 'server.status_pause'
-      }
-    } else if (info.status === ClientStatus_Status.OFFLINE) {
-      statusText = 'server.status_offline'
-    } else if (info.status === ClientStatus_Status.ERROR) {
-      statusText = 'server.status_error'
-    }
-    return statusText
-  }
-
-  const infoColor =
-    clientsStatus?.clients[server.id]?.status === ClientStatus_Status.ONLINE ? (
-      server.stopped ? 'text-yellow-500' : 'text-green-500') : 'text-red-500'
+  const clientStatus = clientsStatus?.clients[server.id]
 
   return (
-    <div className="flex items-center gap-2 flex-row">
-      <Badge variant={"secondary"} className={`p-2 border rounded font-mono w-fit ${infoColor} text-nowrap rounded-full h-6`}>
-        {`${clientsStatus?.clients[server.id]?.ping}ms,${t(trans(clientsStatus?.clients[server.id]))}`}
-      </Badge>
-      {clientsStatus?.clients[server.id]?.version &&
-        <ClientDetail clientStatus={clientsStatus?.clients[server.id]} />
-      }
-    </div>
+    <ServerStatusBadge
+      serverID={server.id}
+      stopped={server.stopped}
+      status={clientStatus?.status}
+      ping={clientStatus?.ping}
+      clientStatus={clientStatus}
+    />
   )
 }
 
